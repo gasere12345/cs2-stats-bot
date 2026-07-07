@@ -15,7 +15,7 @@ from bot.fa_client import FaceitAnalyserClient
 from bot.parser import parse_faceit_url
 from bot.aggregator import aggregate_player_data
 from bot.analyzer import compute_usefulness
-from bot.formatter import format_stats
+from bot.formatter import format_summary, format_career, format_match_detail, format_roster
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +29,13 @@ fa = FaceitAnalyserClient(api_key=FA_TOKEN) if FA_TOKEN else None
 
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
+
+_sessions: dict[int, dict] = {}
+
+TAB_SUMMARY = "tab_summary"
+TAB_CAREER = "tab_career"
+TAB_MATCH = "tab_match"
+TAB_ROSTER = "tab_roster"
 
 EXAMPLE_MATCH_URL = "https://www.faceit.com/en/cs2/room/1-bef556dc-1883-4cad-b111-b3546972519c"
 EXAMPLE_NICKNAME = "f1lipmeister"
@@ -48,9 +55,17 @@ def main_menu() -> InlineKeyboardMarkup:
 
 def match_buttons(match_url: str, player_url: str | None = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="🔗 Открыть матч на Faceit", url=match_url))
+    builder.row(
+        InlineKeyboardButton(text="📊 Сводка", callback_data=TAB_SUMMARY),
+        InlineKeyboardButton(text="📈 Карьера", callback_data=TAB_CAREER),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🔫 Матч", callback_data=TAB_MATCH),
+        InlineKeyboardButton(text="👥 Состав", callback_data=TAB_ROSTER),
+    )
+    builder.row(InlineKeyboardButton(text="🔗 Открыть матч", url=match_url))
     if player_url:
-        builder.row(InlineKeyboardButton(text="👤 Профиль игрока", url=player_url))
+        builder.row(InlineKeyboardButton(text="👤 Профиль", url=player_url))
     builder.row(InlineKeyboardButton(text="🔄 Новый поиск", callback_data="start"))
     return builder.as_markup()
 
@@ -195,16 +210,61 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
             return
 
         score = compute_usefulness(agg)
-        text = format_stats(agg, score)
 
         faceit_url = f"https://www.faceit.com/en/cs2/room/{match_id}"
         player_faceit_url = f"https://www.faceit.com/en/players/{nickname}" if player_faceit else None
+        _sessions[message.chat.id] = {
+            "agg": agg, "score": score,
+            "match_url": faceit_url, "player_url": player_faceit_url,
+        }
+
+        text = format_summary(agg, score)
         kb = match_buttons(faceit_url, player_faceit_url)
 
         await status_msg.edit_text(text, parse_mode="HTML", reply_markup=kb)
     except Exception as e:
         logger.exception("Ошибка при обработке команды")
         await status_msg.edit_text(f"❌ Ошибка: {e}")
+
+
+async def _show_tab(callback: types.CallbackQuery, tab: str, formatter):
+    session = _sessions.get(callback.message.chat.id)
+    if not session:
+        await callback.answer("❌ Данные устарели, отправь /faceit заново")
+        return
+    text = formatter(session["agg"], session["score"])
+    kb = match_buttons(session["match_url"], session.get("player_url"))
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == TAB_SUMMARY)
+async def cb_tab_summary(callback: types.CallbackQuery):
+    await _show_tab(callback, TAB_SUMMARY, format_summary)
+
+
+@dp.callback_query(F.data == TAB_CAREER)
+async def cb_tab_career(callback: types.CallbackQuery):
+
+    def formatter(agg, _score):
+        return format_career(agg)
+    await _show_tab(callback, TAB_CAREER, formatter)
+
+
+@dp.callback_query(F.data == TAB_MATCH)
+async def cb_tab_match(callback: types.CallbackQuery):
+
+    def formatter(agg, _score):
+        return format_match_detail(agg)
+    await _show_tab(callback, TAB_MATCH, formatter)
+
+
+@dp.callback_query(F.data == TAB_ROSTER)
+async def cb_tab_roster(callback: types.CallbackQuery):
+
+    def formatter(agg, _score):
+        return format_roster(agg)
+    await _show_tab(callback, TAB_ROSTER, formatter)
 
 
 class _HealthHandler(BaseHTTPRequestHandler):

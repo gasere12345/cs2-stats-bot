@@ -75,6 +75,13 @@ def aggregate_player_data(
         "lifetime_mvps": 0,
         "lifetime_kr": 0.0,
         "lifetime_win_streak": 0,
+        "first_kills": 0,
+        "first_deaths": 0,
+        "kast": 0.0,
+        "utility_kills": 0,
+        "flash_assists": 0,
+        "smoke_kills": 0,
+        "flash_kills": 0,
         "all_stats_raw": {},
         "teammates": [],
         "opponents": [],
@@ -104,6 +111,13 @@ def aggregate_player_data(
                 result["quadro_kills"] = _safe_int(s.get("Quadro Kills"))
                 result["penta_kills"] = _safe_int(s.get("Penta Kills"))
                 result["result"] = s.get("Result", "")
+                result["first_kills"] = _safe_int(s.get("First Kills"))
+                result["first_deaths"] = _safe_int(s.get("First Deaths"))
+                result["kast"] = _safe_float(s.get("KAST"))
+                result["utility_kills"] = _safe_int(s.get("Utility Kills"))
+                result["flash_assists"] = _safe_int(s.get("Flash Assists"))
+                result["smoke_kills"] = _safe_int(s.get("Smoke Kills"))
+                result["flash_kills"] = _safe_int(s.get("Flash Kills"))
                 break
         for p in match_stats.get("players") or []:
             nick = p.get("nickname", "")

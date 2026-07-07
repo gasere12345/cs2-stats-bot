@@ -56,14 +56,22 @@ def test_format_aggregated_output():
         "clutch_1v2_wins": 0,
         "hltv_rating": 1.25,
         "rws": 11.5,
-        "lifetime_matches": 350,
-        "lifetime_wins": 185,
-        "lifetime_kd": 1.28,
-        "lifetime_hs_pct": 48.0,
-        "lifetime_adr": 88.0,
-        "lifetime_win_rate": 52.9,
-        "lifetime_mvps": 120,
-    }
+            "first_kills": 3,
+            "first_deaths": 2,
+            "kast": 72.0,
+            "utility_kills": 1,
+            "smoke_kills": 0,
+            "flash_kills": 1,
+            "lifetime_matches": 350,
+            "lifetime_wins": 185,
+            "lifetime_kd": 1.28,
+            "lifetime_hs_pct": 48.0,
+            "lifetime_adr": 88.0,
+            "lifetime_win_rate": 52.9,
+            "lifetime_mvps": 120,
+            "lifetime_kr": 0.72,
+            "lifetime_win_streak": 5,
+        }
     score = compute_usefulness(data)
     result = format_stats(data, score)
     assert "NiKo" in result
