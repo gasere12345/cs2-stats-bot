@@ -189,10 +189,27 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
 
         await status_msg.edit_text("🔍 Получаю расширенную аналитику...")
 
-        player_faceit = await faceit.get_player_by_nickname(nickname)
+        match_player_id = None
+        for p in (match_stats.get("players") or []):
+            if p.get("nickname", "").lower() == nickname.lower():
+                match_player_id = p.get("player_id")
+                break
+
+        player_faceit = None
+        try:
+            player_faceit = await faceit.get_player_by_nickname(nickname)
+        except Exception as e:
+            logger.warning("Не удалось найти профиль игрока по нику: %s", e)
+
+        player_id = None
+        if player_faceit and player_faceit.player_id:
+            player_id = player_faceit.player_id
+        elif match_player_id:
+            player_id = match_player_id
+
         lifetime = None
-        if player_faceit:
-            lifetime = await faceit.get_lifetime_stats(player_faceit.player_id)
+        if player_id:
+            lifetime = await faceit.get_lifetime_stats(player_id)
 
         extended = None
         if fa:
