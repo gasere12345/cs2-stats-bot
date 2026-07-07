@@ -1,9 +1,14 @@
 import os
 import asyncio
 import logging
+import threading
+from dataclasses import asdict
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command, CommandObject
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.faceit_client import FaceitClient
 from bot.fa_client import FaceitAnalyserClient
@@ -20,31 +25,134 @@ FA_TOKEN = os.environ.get("FA_TOKEN", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 
 faceit = FaceitClient(api_key=FACEIT_TOKEN)
-fa = FaceitAnalyserClient(api_key=FA_TOKEN)
+fa = FaceitAnalyserClient(api_key=FA_TOKEN) if FA_TOKEN else None
 
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
+EXAMPLE_MATCH_URL = "https://www.faceit.com/en/cs2/room/1-bef556dc-1883-4cad-b111-b3546972519c"
+EXAMPLE_NICKNAME = "f1lipmeister"
 
-@dp.message(Command("start", "help"))
+
+def main_menu() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="📋 Помощь", callback_data="help"),
+        InlineKeyboardButton(text="📌 Пример", callback_data="example"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🌐 Faceit Analyser", url="https://faceitanalyser.com"),
+    )
+    return builder.as_markup()
+
+
+def match_buttons(match_url: str, player_url: str | None = None) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="🔗 Открыть матч на Faceit", url=match_url))
+    if player_url:
+        builder.row(InlineKeyboardButton(text="👤 Профиль игрока", url=player_url))
+    builder.row(InlineKeyboardButton(text="🔄 Новый поиск", callback_data="start"))
+    return builder.as_markup()
+
+
+@dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     await message.reply(
-        "Пришли ссылку на Faceit-матч и ник игрока командой:\n"
-        "<code>/faceit &lt;ссылка&gt; &lt;ник&gt;</code>\n\n"
-        "Пример:\n"
-        "<code>/faceit https://www.faceit.com/en/cs2/room/abc123 NiKo</code>"
+        "🎮 <b>CS2 Faceit Stats Bot</b>\n\n"
+        "Анализирую статистику игроков в матчах Faceit.\n\n"
+        "Просто отправь команду:\n"
+        "<code>/faceit &lt;ссылка_на_матч&gt; &lt;ник&gt;</code>",
+        parse_mode="HTML",
+        reply_markup=main_menu(),
     )
 
 
+@dp.message(Command("help"))
+async def cmd_help(message: types.Message):
+    await message.reply(
+        "📋 <b>Все команды</b>\n\n"
+        "<b>/start</b> — главное меню\n"
+        "<b>/help</b> — эта справка\n"
+        "<b>/faceit</b> <i>&lt;url&gt; &lt;ник&gt;</i> — получить статистику\n\n"
+        "📌 <b>Пример:</b>\n"
+        f"<code>/faceit {EXAMPLE_MATCH_URL} {EXAMPLE_NICKNAME}</code>\n\n"
+        "📊 <b>Что показывает:</b>\n"
+        "• K/D, ADR, KPR, HS%, MVPs\n"
+        "• Мультикиллы (триплы/квадры/пенты)\n"
+        "• Карьерная статистика (lifetime)\n"
+        "• Usefulness Score (−2..+2)\n",
+        parse_mode="HTML",
+        reply_markup=main_menu(),
+    )
+
+
+@dp.callback_query(F.data == "start")
+async def cb_start(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "🎮 <b>CS2 Faceit Stats Bot</b>\n\n"
+        "Анализирую статистику игроков в матчах Faceit.\n\n"
+        "Просто отправь команду:\n"
+        "<code>/faceit &lt;ссылка_на_матч&gt; &lt;ник&gt;</code>",
+        parse_mode="HTML",
+        reply_markup=main_menu(),
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "help")
+async def cb_help(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "📋 <b>Все команды</b>\n\n"
+        "<b>/start</b> — главное меню\n"
+        "<b>/help</b> — эта справка\n"
+        "<b>/faceit</b> <i>&lt;url&gt; &lt;ник&gt;</i> — получить статистику\n\n"
+        "📌 <b>Пример:</b>\n"
+        f"<code>/faceit {EXAMPLE_MATCH_URL} {EXAMPLE_NICKNAME}</code>\n\n"
+        "📊 <b>Что показывает:</b>\n"
+        "• K/D, ADR, KPR, HS%, MVPs\n"
+        "• Мультикиллы (триплы/квадры/пенты)\n"
+        "• Карьерная статистика (lifetime)\n"
+        "• Usefulness Score (−2..+2)\n",
+        parse_mode="HTML",
+        reply_markup=main_menu(),
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "example")
+async def cb_example(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        f"📌 <b>Пример команды:</b>\n\n"
+        f"<code>/faceit {EXAMPLE_MATCH_URL} {EXAMPLE_NICKNAME}</code>\n\n"
+        "Просто скопируй и отправь это сообщение боту 👆",
+        parse_mode="HTML",
+        reply_markup=main_menu(),
+    )
+    await callback.answer()
+
+
 @dp.message(Command("faceit"))
-async def cmd_faceit(message: types.Message):
-    args = message.text.split(maxsplit=2)
-    if len(args) < 3:
-        await message.reply("Использование: /faceit <ссылка> <ник>")
+async def cmd_faceit(message: types.Message, command: CommandObject):
+    args = command.args
+    if not args:
+        await message.reply(
+            "❌ Укажи ссылку на матч и ник игрока.\n\n"
+            "Пример:\n"
+            f"<code>/faceit {EXAMPLE_MATCH_URL} {EXAMPLE_NICKNAME}</code>",
+            parse_mode="HTML",
+        )
         return
 
-    raw_url = args[1]
-    nickname = args[2]
+    parts = args.rsplit(maxsplit=1)
+    if len(parts) < 2:
+        await message.reply(
+            "❌ Укажи и ссылку, и ник.\n\n"
+            f"Пример: <code>/faceit {EXAMPLE_MATCH_URL} {EXAMPLE_NICKNAME}</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    raw_url, nickname = parts[0].strip(), parts[1].strip()
 
     match_id = parse_faceit_url(raw_url)
     if not match_id:
@@ -69,17 +177,19 @@ async def cmd_faceit(message: types.Message):
         player_faceit = await faceit.get_player_by_nickname(nickname)
         lifetime = None
         if player_faceit:
-            lifetime = await faceit.get_lifetime_stats(player_faceit["player_id"])
+            lifetime = await faceit.get_lifetime_stats(player_faceit.player_id)
 
         extended = None
-        try:
-            extended = await fa.get_match_extended_stats(match_id)
-        except Exception as e:
-            logger.warning("Faceit Analyser API не отвечает: %s", e)
+        if fa:
+            try:
+                extended = await fa.get_match_extended_stats(match_id)
+            except Exception as e:
+                logger.warning("Faceit Analyser API не отвечает: %s", e)
 
         await status_msg.edit_text("📊 Анализирую...")
 
-        agg = aggregate_player_data(nickname, match_stats, extended, lifetime)
+        player_info = asdict(player_faceit) if player_faceit else None
+        agg = aggregate_player_data(nickname, match_stats, extended, asdict(lifetime) if lifetime else None, player_info)
         if agg["kills"] == 0 and agg["deaths"] == 0:
             await status_msg.edit_text(f"❌ Игрок {nickname} не найден в этом матче.")
             return
@@ -87,13 +197,34 @@ async def cmd_faceit(message: types.Message):
         score = compute_usefulness(agg)
         text = format_stats(agg, score)
 
-        await status_msg.edit_text(text, parse_mode="HTML")
+        faceit_url = f"https://www.faceit.com/en/cs2/room/{match_id}"
+        player_faceit_url = f"https://www.faceit.com/en/players/{nickname}" if player_faceit else None
+        kb = match_buttons(faceit_url, player_faceit_url)
+
+        await status_msg.edit_text(text, parse_mode="HTML", reply_markup=kb)
     except Exception as e:
         logger.exception("Ошибка при обработке команды")
         await status_msg.edit_text(f"❌ Ошибка: {e}")
 
 
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+    def log_message(self, *args):
+        pass
+
+
+def _start_health_server():
+    port = int(os.environ.get("PORT", "8000"))
+    server = HTTPServer(("0.0.0.0", port), _HealthHandler)
+    server.serve_forever()
+
+
 async def main():
+    if os.environ.get("PORT"):
+        threading.Thread(target=_start_health_server, daemon=True).start()
     await dp.start_polling(bot)
 
 

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: cs2-stats-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m bot.bot
+    envVars:
+      - key: FACEIT_TOKEN
+        sync: false
+      - key: FA_TOKEN
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false

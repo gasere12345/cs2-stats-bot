@@ -2,6 +2,12 @@ from typing import Any
 from bot.analyzer import describe_usefulness, describe_skill_level
 
 
+def _fmt_pct(val: float) -> str:
+    if val > 1:
+        return f"{val:.1f}%"
+    return f"{val * 100:.1f}%"
+
+
 def format_stats(agg: dict[str, Any], score: float) -> str:
     team_emoji = "🟢" if agg["won"] else "🔴"
     lines = [
@@ -10,7 +16,7 @@ def format_stats(agg: dict[str, Any], score: float) -> str:
         "",
         f"<b>Боевые</b>",
         f"K/D: {agg['kd']}  |  ADR: {agg['adr']}  |  KPR: {agg['kpr']}",
-        f"HS: {agg['hs']} ({agg['hs_pct']}%)",
+        f"HS: {agg['hs']} ({_fmt_pct(agg['hs_pct'])})",
         f"MVPs: {agg['mvps']}  |  Триплы/Квадры/Пенты: {agg['triple_kills']}/{agg['quadro_kills']}/{agg['penta_kills']}",
     ]
 
@@ -18,7 +24,7 @@ def format_stats(agg: dict[str, Any], score: float) -> str:
         lines += [
             "",
             f"<b>⚔️ Вход/Трейд</b>",
-            f"Entry успех: {agg['entry_success_pct']}%  |  ОПН kills: {agg['opening_kills']} / deaths: {agg['opening_deaths']}",
+            f"Entry успех: {_fmt_pct(agg['entry_success_pct'])}  |  ОПН kills: {agg['opening_kills']} / deaths: {agg['opening_deaths']}",
             f"Trade kills: {agg['trade_kills']}  |  Trade deaths: {agg['trade_deaths']}  |  Ratio: {agg['trade_ratio']}",
         ]
 
@@ -47,9 +53,9 @@ def format_stats(agg: dict[str, Any], score: float) -> str:
     lines += [
         "",
         f"<b>📊 Карьерные (lifetime)</b>",
-        f"Матчей: {agg['lifetime_matches']}  |  Побед: {agg['lifetime_wins']} ({agg['lifetime_win_rate']}%)",
-        f"Ср. K/D: {agg['lifetime_kd']}  |  HS%: {agg['lifetime_hs_pct']}%  |  ADR: {agg['lifetime_adr']}",
-        f"Тимплейты (faceit): {describe_skill_level(0, 0, agg['lifetime_win_rate'])}",
+        f"Матчей: {agg['lifetime_matches']}  |  Побед: {agg['lifetime_wins']} ({_fmt_pct(agg['lifetime_win_rate'])})",
+        f"Ср. K/D: {agg['lifetime_kd']}  |  HS%: {_fmt_pct(agg['lifetime_hs_pct'])}  |  ADR: {agg['lifetime_adr']}",
+        f"Тимплейты (faceit): {describe_skill_level(agg['skill_level'], agg['elo'], agg['lifetime_win_rate'])}",
     ]
 
     lines += [

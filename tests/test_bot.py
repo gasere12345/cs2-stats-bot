@@ -26,6 +26,8 @@ def test_format_aggregated_output():
 
     data = {
         "nickname": "NiKo",
+        "skill_level": 10,
+        "elo": 2500,
         "map": "de_mirage",
         "score": "13-16",
         "won": False,

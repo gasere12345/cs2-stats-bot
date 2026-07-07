@@ -24,9 +24,12 @@ def aggregate_player_data(
     match_stats: dict[str, Any] | None,
     extended: dict[str, Any] | None,
     lifetime: dict[str, Any] | None,
+    player_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "nickname": target_nickname,
+        "skill_level": (player_info or {}).get("skill_level", 0),
+        "elo": (player_info or {}).get("elo", 0),
         "map": "",
         "score": "",
         "won": False,
