@@ -26,20 +26,27 @@ class FaceitClient:
             resp.raise_for_status()
             return resp.json()
 
-    async def get_player_by_nickname(self, nickname: str) -> FaceitPlayer | None:
-        data = await self._get("/players", params={"nickname": nickname, "game": "cs2"})
+    def _parse_player(self, data: dict, fallback_nickname: str = "") -> FaceitPlayer | None:
         if data is None:
             return None
         cs2 = (data.get("games") or {}).get("cs2") or {}
         return FaceitPlayer(
             player_id=data.get("player_id", ""),
-            nickname=data.get("nickname", nickname),
+            nickname=data.get("nickname", fallback_nickname),
             country=data.get("country", ""),
             steam_id=cs2.get("game_player_id", ""),
             faceit_url=data.get("faceit_url", ""),
             elo=int(cs2.get("faceit_elo", 0)),
             skill_level=int(cs2.get("skill_level", 0)),
         )
+
+    async def get_player_by_nickname(self, nickname: str) -> FaceitPlayer | None:
+        data = await self._get("/players", params={"nickname": nickname, "game": "cs2"})
+        return self._parse_player(data, nickname)
+
+    async def get_player_by_id(self, player_id: str) -> FaceitPlayer | None:
+        data = await self._get(f"/players/{player_id}")
+        return self._parse_player(data)
 
     async def get_match(self, match_id: str) -> FaceitMatch | None:
         data = await self._get(f"/matches/{match_id}")

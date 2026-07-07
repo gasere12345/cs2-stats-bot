@@ -206,6 +206,10 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
             player_id = player_faceit.player_id
         elif match_player_id:
             player_id = match_player_id
+            try:
+                player_faceit = await faceit.get_player_by_id(match_player_id)
+            except Exception as e:
+                logger.warning("Не удалось найти профиль по ID: %s", e)
 
         lifetime = None
         if player_id:
