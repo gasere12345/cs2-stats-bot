@@ -219,12 +219,21 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
             lifetime = await faceit.get_lifetime_stats(player_id)
 
         extended = None
+        fa_career = None
         if fa:
-            try:
-                extended = await fa.get_match_extended_stats(match_id)
-                logger.info("FA raw response for match %s: %s", match_id, extended)
-            except Exception as e:
-                logger.warning("Faceit Analyser API не отвечает: %s", e)
+            if player_faceit:
+                try:
+                    fa_career = await fa.get_player_extended_stats(nickname)
+                    logger.info("FA career for %s: %s", nickname, fa_career)
+                except Exception as e:
+                    logger.warning("FA player API: %s", e)
+            if not fa_career:
+                try:
+                    extended = await fa.get_match_extended_stats(match_id)
+                    if extended:
+                        logger.info("FA match data for %s: %s", match_id, extended)
+                except Exception as e:
+                    logger.warning("FA match API: %s", e)
 
         leetify = None
         if cs2space and player_faceit and player_faceit.steam_id:
@@ -237,7 +246,7 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
         await status_msg.edit_text("📊 Анализирую...")
 
         player_info = asdict(player_faceit) if player_faceit else None
-        agg = aggregate_player_data(nickname, match_stats, extended, asdict(lifetime) if lifetime else None, player_info, leetify)
+        agg = aggregate_player_data(nickname, match_stats, extended, asdict(lifetime) if lifetime else None, player_info, leetify, fa_career)
         if agg["kills"] == 0 and agg["deaths"] == 0:
             await status_msg.edit_text(f"❌ Игрок {nickname} не найден в этом матче.")
             return

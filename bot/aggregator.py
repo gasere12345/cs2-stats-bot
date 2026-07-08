@@ -26,6 +26,7 @@ def aggregate_player_data(
     lifetime: dict[str, Any] | None,
     player_info: dict[str, Any] | None = None,
     leetify: dict[str, Any] | None = None,
+    fa_career: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "nickname": target_nickname,
@@ -168,6 +169,14 @@ def aggregate_player_data(
     if result["trade_kills"] > 0 or result["trade_deaths"] > 0:
         td = result["trade_deaths"] if result["trade_deaths"] > 0 else 1
         result["trade_ratio"] = round(result["trade_kills"] / td, 2)
+
+    if fa_career:
+        result["fa_career"] = {
+            k: fa_career.get(k)
+            for k in ["m", "avg_hltv", "hltv", "avg_kdr", "avg_krr", "hsp",
+                       "avg_k", "avg_d", "wr", "avg_k1", "avg_k2", "avg_k3",
+                       "avg_k4", "avg_k5", "current_elo", "highest_elo"]
+        }
 
     if result["has_extended_data"]:
         has_real_data = any([

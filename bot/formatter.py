@@ -119,6 +119,18 @@ def format_career(agg: dict[str, Any]) -> str:
     ]
     if agg.get("lifetime_win_streak"):
         lines.append(f"Лучшая серия  {agg['lifetime_win_streak']} побед")
+    fa_career = agg.get("fa_career")
+    if fa_career and fa_career.get("m", 0) > 0:
+        fa_lines = [f"FA HLTV  {fa_career['avg_hltv']:.2f}" if fa_career.get('avg_hltv') else ""]
+        if fa_career.get("avg_k1") is not None:
+            fa_lines.append(f"Multi 1x{fa_career['avg_k1']:.1f} / 2x{fa_career['avg_k2']:.1f} / "
+                            f"3x{fa_career['avg_k3']:.1f} / 4x{fa_career['avg_k4']:.1f} / 5x{fa_career['avg_k5']:.1f}")
+        if fa_career.get("highest_elo"):
+            fa_lines.append(f"Peak ELO  {fa_career['highest_elo']}")
+        fa_lines = [l for l in fa_lines if l]
+        if fa_lines:
+            lines += ["", "<b>🌐 Faceit Analyser</b>"] + fa_lines
+
     leetify = agg.get("leetify_ratings")
     if leetify:
         parts = []
