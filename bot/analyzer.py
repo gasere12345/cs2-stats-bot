@@ -13,9 +13,19 @@ _THRESHOLDS_IMPACT = {
     "multi_kills": {"excellent": 4, "good": 2, "average": 0, "bad": -1},
 }
 
+_THRESHOLDS_ENTRY = {
+    "entry_pct": {"excellent": 75, "good": 60, "average": 40, "bad": 20},
+}
+
+_THRESHOLDS_KAST = {
+    "kast": {"excellent": 80, "good": 70, "average": 55, "bad": 40},
+}
+
 _WEIGHTS = {
     "combat": 0.35,
-    "impact": 0.25,
+    "impact": 0.20,
+    "entry": 0.25,
+    "kast": 0.20,
 }
 
 
@@ -53,9 +63,24 @@ def compute_usefulness(data: dict[str, Any]) -> float:
     ]
     impact = sum(impact_scores) / len(impact_scores)
 
-    w_combat = _WEIGHTS["combat"] / (_WEIGHTS["combat"] + _WEIGHTS["impact"])
-    w_impact = _WEIGHTS["impact"] / (_WEIGHTS["combat"] + _WEIGHTS["impact"])
-    total = combat * w_combat + impact * w_impact
+    fk = data.get("first_kills", 0)
+    fd = data.get("first_deaths", 0)
+    if fk + fd > 0:
+        entry = _score_metric(data.get("entry_success_pct", 0), _THRESHOLDS_ENTRY["entry_pct"])
+    else:
+        entry = 0.0
+
+    if data.get("kast", 0) > 0:
+        kast = _score_metric(data["kast"], _THRESHOLDS_KAST["kast"])
+    else:
+        kast = 0.0
+
+    total = (
+        combat * _WEIGHTS["combat"]
+        + impact * _WEIGHTS["impact"]
+        + entry * _WEIGHTS["entry"]
+        + kast * _WEIGHTS["kast"]
+    )
 
     return round(total, 1)
 

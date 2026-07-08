@@ -230,11 +230,24 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
 
         score = compute_usefulness(agg)
 
+        team_scores = {}
+        for p in (match_stats.get("players") or []):
+            p_agg = aggregate_player_data(p["nickname"], match_stats, None, None, None, None)
+            team_scores[p["nickname"]] = {
+                "score": compute_usefulness(p_agg),
+                "team_id": p.get("team_id", ""),
+                "kd": p_agg["kd"],
+                "kills": p_agg["kills"],
+                "deaths": p_agg["deaths"],
+                "adr": p_agg["adr"],
+            }
+
         faceit_url = f"https://www.faceit.com/en/cs2/room/{match_id}"
         player_faceit_url = f"https://www.faceit.com/en/players/{nickname}" if player_faceit else None
         _sessions[message.chat.id] = {
             "agg": agg, "score": score,
             "match_url": faceit_url, "player_url": player_faceit_url,
+            "team_scores": team_scores,
         }
 
         text = format_summary(agg, score)
@@ -282,7 +295,8 @@ async def cb_tab_match(callback: types.CallbackQuery):
 async def cb_tab_roster(callback: types.CallbackQuery):
 
     def formatter(agg, _score):
-        return format_roster(agg)
+        session = _sessions.get(callback.message.chat.id)
+        return format_roster(agg, (session or {}).get("team_scores"))
     await _show_tab(callback, TAB_ROSTER, formatter)
 
 

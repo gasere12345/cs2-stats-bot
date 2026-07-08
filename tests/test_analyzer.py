@@ -3,14 +3,10 @@ from bot.analyzer import compute_usefulness, describe_usefulness, describe_skill
 
 def test_compute_usefulness_carry():
     data = {
-        "kd": 2.0,
-        "adr": 120.0,
-        "kpr": 1.2,
-        "hs_pct": 60.0,
-        "mvps": 6,
-        "triple_kills": 3,
-        "quadro_kills": 1,
-        "penta_kills": 0,
+        "kd": 2.0, "adr": 120.0, "kpr": 1.2, "hs_pct": 60.0,
+        "mvps": 6, "triple_kills": 3, "quadro_kills": 1, "penta_kills": 0,
+        "entry_success_pct": 85.0, "first_kills": 6, "first_deaths": 1,
+        "kast": 95.0,
     }
     score = compute_usefulness(data)
     assert score >= 1.5
@@ -18,14 +14,10 @@ def test_compute_usefulness_carry():
 
 def test_compute_usefulness_avg():
     data = {
-        "kd": 1.0,
-        "adr": 75.0,
-        "kpr": 0.7,
-        "hs_pct": 40.0,
-        "mvps": 1,
-        "triple_kills": 0,
-        "quadro_kills": 0,
-        "penta_kills": 0,
+        "kd": 1.1, "adr": 70.0, "kpr": 0.6, "hs_pct": 35.0,
+        "mvps": 1, "triple_kills": 0, "quadro_kills": 0, "penta_kills": 0,
+        "entry_success_pct": 50.0, "first_kills": 3, "first_deaths": 3,
+        "kast": 60.0,
     }
     score = compute_usefulness(data)
     assert -0.5 <= score <= 0.5
@@ -33,29 +25,21 @@ def test_compute_usefulness_avg():
 
 def test_compute_usefulness_weak():
     data = {
-        "kd": 0.3,
-        "adr": 30.0,
-        "kpr": 0.3,
-        "hs_pct": 15.0,
-        "mvps": 0,
-        "triple_kills": 0,
-        "quadro_kills": 0,
-        "penta_kills": 0,
+        "kd": 0.3, "adr": 30.0, "kpr": 0.3, "hs_pct": 15.0,
+        "mvps": 0, "triple_kills": 0, "quadro_kills": 0, "penta_kills": 0,
+        "entry_success_pct": 20.0, "first_kills": 1, "first_deaths": 4,
+        "kast": 40.0,
     }
     score = compute_usefulness(data)
     assert score <= -0.5
 
 
-def test_compute_usefulness_no_extended():
+def test_compute_usefulness_good():
     data = {
-        "kd": 1.2,
-        "adr": 80.0,
-        "kpr": 0.75,
-        "hs_pct": 50.0,
-        "mvps": 2,
-        "triple_kills": 1,
-        "quadro_kills": 0,
-        "penta_kills": 0,
+        "kd": 1.2, "adr": 80.0, "kpr": 0.75, "hs_pct": 50.0,
+        "mvps": 2, "triple_kills": 1, "quadro_kills": 0, "penta_kills": 0,
+        "entry_success_pct": 55.0, "first_kills": 6, "first_deaths": 4,
+        "kast": 72.0,
     }
     score = compute_usefulness(data)
     assert score >= 0.0
