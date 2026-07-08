@@ -9,8 +9,8 @@ _THRESHOLDS_COMBAT = {
 }
 
 _THRESHOLDS_IMPACT = {
-    "mvps": {"excellent": 5, "good": 3, "average": 1, "bad": 0},
-    "multi_kills": {"excellent": 4, "good": 2, "average": 1, "bad": 0},
+    "mvps": {"excellent": 4, "good": 2, "average": 0, "bad": -1},
+    "multi_kills": {"excellent": 4, "good": 2, "average": 0, "bad": -1},
 }
 
 _THRESHOLDS_ENTRY = {
@@ -27,6 +27,10 @@ _THRESHOLDS_CLUTCH = {
     "clutch_wins": {"excellent": 2, "good": 1, "average": 0, "bad": 0},
 }
 
+_THRESHOLDS_HLTV = {
+    "hltv_rating": {"excellent": 1.5, "good": 1.2, "average": 1.0, "bad": 0.8},
+}
+
 _WEIGHTS = {
     "combat": 0.35,
     "impact": 0.25,
@@ -41,11 +45,17 @@ def _score_metric(value: float, thresholds: dict) -> float:
     if value >= thresholds["excellent"]:
         return 2.0
     if value >= thresholds["good"]:
-        return 1.0
+        t = (value - thresholds["good"]) / (thresholds["excellent"] - thresholds["good"])
+        return 1.0 + t
     if value >= thresholds["average"]:
-        return 0.0
+        t = (value - thresholds["average"]) / (thresholds["good"] - thresholds["average"])
+        return 0.0 + t
     if value >= thresholds["bad"]:
-        return -1.0
+        t = (value - thresholds["bad"]) / (thresholds["average"] - thresholds["bad"])
+        return -1.0 + t
+    if thresholds["bad"] > 0:
+        t = value / thresholds["bad"]
+        return -2.0 + t
     return -2.0
 
 
@@ -65,41 +75,37 @@ def compute_usefulness(data: dict[str, Any]) -> float:
     ]
     impact = sum(impact_scores) / len(impact_scores)
 
-    entry_scores = [
-        _score_metric(data.get("entry_success_pct", 0), _THRESHOLDS_ENTRY["entry_pct"]),
-        _score_metric(data.get("trade_ratio", 0), _THRESHOLDS_ENTRY["trade_ratio"]),
-    ]
-    entry = sum(entry_scores) / len(entry_scores)
+    if data.get("has_extended_data"):
+        entry_scores = [
+            _score_metric(data.get("entry_success_pct", 0), _THRESHOLDS_ENTRY["entry_pct"]),
+            _score_metric(data.get("trade_ratio", 0), _THRESHOLDS_ENTRY["trade_ratio"]),
+        ]
+        entry = sum(entry_scores) / len(entry_scores)
 
-    util_scores = [
-        _score_metric(data.get("utility_damage", 0), _THRESHOLDS_UTILITY["util_dmg"]),
-        _score_metric(float(data.get("enemies_flashed", 0)), _THRESHOLDS_UTILITY["flashes"]),
-    ]
-    utility = sum(util_scores) / len(util_scores)
+        util_scores = [
+            _score_metric(data.get("utility_damage", 0), _THRESHOLDS_UTILITY["util_dmg"]),
+            _score_metric(float(data.get("enemies_flashed", 0)), _THRESHOLDS_UTILITY["flashes"]),
+        ]
+        utility = sum(util_scores) / len(util_scores)
 
-    clutch_val = data.get("clutch_1v1_wins", 0) + data.get("clutch_1v2_wins", 0) * 2
-    clutch = _score_metric(float(clutch_val), _THRESHOLDS_CLUTCH["clutch_wins"])
+        clutch_val = data.get("clutch_1v1_wins", 0) + data.get("clutch_1v2_wins", 0) * 2
+        clutch = _score_metric(float(clutch_val), _THRESHOLDS_CLUTCH["clutch_wins"])
 
-    hltv_val = data.get("hltv_rating", 0)
-    if hltv_val >= 1.5:
-        hltv_score = 2.0
-    elif hltv_val >= 1.2:
-        hltv_score = 1.0
-    elif hltv_val >= 1.0:
-        hltv_score = 0.0
-    elif hltv_val >= 0.8:
-        hltv_score = -1.0
+        hltv_score = _score_metric(data.get("hltv_rating", 0), _THRESHOLDS_HLTV["hltv_rating"])
+
+        total = (
+            combat * _WEIGHTS["combat"]
+            + impact * _WEIGHTS["impact"]
+            + entry * _WEIGHTS["entry"]
+            + utility * _WEIGHTS["utility"]
+            + clutch * _WEIGHTS["clutch"]
+            + hltv_score * _WEIGHTS["hltv"]
+        )
     else:
-        hltv_score = -2.0
+        w_combat = _WEIGHTS["combat"] / (_WEIGHTS["combat"] + _WEIGHTS["impact"])
+        w_impact = _WEIGHTS["impact"] / (_WEIGHTS["combat"] + _WEIGHTS["impact"])
+        total = combat * w_combat + impact * w_impact
 
-    total = (
-        combat * _WEIGHTS["combat"]
-        + impact * _WEIGHTS["impact"]
-        + entry * _WEIGHTS["entry"]
-        + utility * _WEIGHTS["utility"]
-        + clutch * _WEIGHTS["clutch"]
-        + hltv_score * _WEIGHTS["hltv"]
-    )
     return round(total, 1)
 
 

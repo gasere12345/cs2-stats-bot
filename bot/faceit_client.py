@@ -107,6 +107,27 @@ class FaceitClient:
         matches = self._to_int(life.get("Matches"))
         wins = self._to_int(life.get("Wins"))
         losses = matches - wins if matches and wins is not None else 0
+
+        mvps = self._to_int(
+            life.get("MVPs")
+            or life.get("MVP")
+            or life.get("Total MVPs")
+            or life.get("mvps")
+        )
+        if mvps is None:
+            mvps = self._mvps_from_segments(data.get("segments") or [])
+
+        kr = self._to_float(
+            life.get("Average K/R Ratio")
+            or life.get("K/R Ratio")
+            or life.get("Average K/R")
+            or life.get("K/R")
+            or life.get("KPR")
+            or life.get("kr")
+        )
+        if kr is None:
+            kr = self._kr_from_segments(data.get("segments") or [])
+
         return LifetimeStats(
             matches=matches or 0,
             wins=wins or 0,
@@ -118,8 +139,8 @@ class FaceitClient:
             kills=self._to_int(life.get("Total Kills")) or 0,
             deaths=self._to_int(life.get("Total Deaths")) or 0,
             assists=self._to_int(life.get("Total Assists")) or 0,
-            mvps=self._to_int(life.get("MVPs")) or 0,
-            kr=self._to_float(life.get("Average K/R Ratio") or life.get("K/R Ratio")) or 0.0,
+            mvps=mvps or 0,
+            kr=kr or 0.0,
             longest_win_streak=self._to_int(life.get("Longest Win Streak")) or 0,
             raw=life,
         )
@@ -133,6 +154,31 @@ class FaceitClient:
             return []
         items = data.get("items") or []
         return [it.get("stats") or {} for it in items if isinstance(it, dict)]
+
+    def _mvps_from_segments(self, segments: list[dict[str, Any]]) -> int | None:
+        total = 0
+        found = False
+        for seg in segments:
+            s = seg.get("stats") or {}
+            mvp = self._to_int(s.get("MVPs") or s.get("mvps"))
+            if mvp is not None:
+                total += mvp
+                found = True
+        return total if found else None
+
+    def _kr_from_segments(self, segments: list[dict[str, Any]]) -> float | None:
+        total_weight = 0
+        weighted_sum = 0.0
+        for seg in segments:
+            s = seg.get("stats") or {}
+            kr_val = self._to_float(s.get("Average K/R Ratio") or s.get("K/R Ratio") or s.get("Average K/R") or s.get("K/R"))
+            seg_matches = self._to_int(s.get("Matches"))
+            if kr_val is not None and seg_matches and seg_matches > 0:
+                weighted_sum += kr_val * seg_matches
+                total_weight += seg_matches
+        if total_weight > 0:
+            return round(weighted_sum / total_weight, 2)
+        return None
 
     def _to_int(self, val: Any) -> int | None:
         if val is None:

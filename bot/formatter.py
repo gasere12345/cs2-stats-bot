@@ -49,6 +49,30 @@ def format_summary(agg: dict[str, Any], score: float) -> str:
     if extras:
         lines += ["", "<b>📊 Дополнительно</b>"] + extras
 
+    if agg.get("has_extended_data"):
+        extras2 = []
+        if agg.get("entry_success_pct"):
+            extras2.append(f"Entry  {_fmt_pct(agg['entry_success_pct'])}")
+        if agg.get("trade_ratio"):
+            extras2.append(f"Trade  {agg['trade_ratio']:.2f}")
+        if agg.get("utility_damage"):
+            extras2.append(f"Util dmg  {agg['utility_damage']}")
+        if agg.get("enemies_flashed"):
+            extras2.append(f"Flashed  {agg['enemies_flashed']}")
+        clutch_parts = []
+        if agg.get("clutch_1v1_wins"):
+            clutch_parts.append(f"1v1 {agg['clutch_1v1_wins']}")
+        if agg.get("clutch_1v2_wins"):
+            clutch_parts.append(f"1v2 {agg['clutch_1v2_wins']}")
+        if agg.get("clutch_1v3_wins"):
+            clutch_parts.append(f"1v3 {agg['clutch_1v3_wins']}")
+        if clutch_parts:
+            extras2.append("Clutch  " + " | ".join(clutch_parts))
+        if agg.get("hltv_rating"):
+            extras2.append(f"HLTV  {agg['hltv_rating']:.2f}")
+        if extras2:
+            lines += ["", "<b>🌐 Faceit Analyser</b>"] + extras2
+
     if agg.get("lifetime_matches"):
         lines += [
             "",
@@ -95,6 +119,17 @@ def format_career(agg: dict[str, Any]) -> str:
     ]
     if agg.get("lifetime_win_streak"):
         lines.append(f"Лучшая серия  {agg['lifetime_win_streak']} побед")
+    leetify = agg.get("leetify_ratings")
+    if leetify:
+        parts = []
+        if leetify.get("aim") is not None:
+            parts.append(f"Aim  {leetify['aim']}")
+        if leetify.get("positioning") is not None:
+            parts.append(f"Pos  {leetify['positioning']}")
+        if leetify.get("utility") is not None:
+            parts.append(f"Util  {leetify['utility']}")
+        if parts:
+            lines += ["", "<b>🤖 Leetify ratings</b>", "  |  ".join(parts)]
     lines.append(f"\n{describe_skill_level(agg['skill_level'], agg['elo'], agg['lifetime_win_rate'])}")
     return "\n".join(lines)
 

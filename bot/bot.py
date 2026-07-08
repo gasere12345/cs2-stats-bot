@@ -12,6 +12,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.faceit_client import FaceitClient
 from bot.fa_client import FaceitAnalyserClient
+from bot.cs2space_client import Cs2SpaceClient
 from bot.parser import parse_faceit_url
 from bot.aggregator import aggregate_player_data
 from bot.analyzer import compute_usefulness
@@ -22,10 +23,12 @@ logger = logging.getLogger(__name__)
 
 FACEIT_TOKEN = os.environ.get("FACEIT_TOKEN", "")
 FA_TOKEN = os.environ.get("FA_TOKEN", "")
+CS2_SPACE_KEY = os.environ.get("CS2_SPACE_KEY", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 
 faceit = FaceitClient(api_key=FACEIT_TOKEN)
 fa = FaceitAnalyserClient(api_key=FA_TOKEN) if FA_TOKEN else None
+cs2space = Cs2SpaceClient(api_key=CS2_SPACE_KEY) if CS2_SPACE_KEY else None
 
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
@@ -219,13 +222,22 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
         if fa:
             try:
                 extended = await fa.get_match_extended_stats(match_id)
+                logger.info("FA raw response for match %s: %s", match_id, extended)
             except Exception as e:
                 logger.warning("Faceit Analyser API не отвечает: %s", e)
+
+        leetify = None
+        if cs2space and player_faceit and player_faceit.steam_id:
+            try:
+                profile = await cs2space.get_profile(player_faceit.steam_id)
+                leetify = (profile or {}).get("leetify")
+            except Exception as e:
+                logger.warning("cs2.space API не отвечает: %s", e)
 
         await status_msg.edit_text("📊 Анализирую...")
 
         player_info = asdict(player_faceit) if player_faceit else None
-        agg = aggregate_player_data(nickname, match_stats, extended, asdict(lifetime) if lifetime else None, player_info)
+        agg = aggregate_player_data(nickname, match_stats, extended, asdict(lifetime) if lifetime else None, player_info, leetify)
         if agg["kills"] == 0 and agg["deaths"] == 0:
             await status_msg.edit_text(f"❌ Игрок {nickname} не найден в этом матче.")
             return

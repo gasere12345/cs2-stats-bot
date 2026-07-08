@@ -19,6 +19,7 @@ def test_compute_usefulness_carry():
         "clutch_1v1_wins": 2,
         "clutch_1v2_wins": 1,
         "hltv_rating": 1.5,
+        "has_extended_data": True,
     }
     score = compute_usefulness(data)
     assert score >= 1.5
@@ -42,12 +43,13 @@ def test_compute_usefulness_avg():
         "clutch_1v1_wins": 0,
         "clutch_1v2_wins": 0,
         "hltv_rating": 1.0,
+        "has_extended_data": True,
     }
     score = compute_usefulness(data)
     assert -0.5 <= score <= 0.5
 
 
-def test_compute_usefulness_throw():
+def test_compute_usefulness_weak():
     data = {
         "kd": 0.3,
         "adr": 30.0,
@@ -65,9 +67,25 @@ def test_compute_usefulness_throw():
         "clutch_1v1_wins": 0,
         "clutch_1v2_wins": 0,
         "hltv_rating": 0.5,
+        "has_extended_data": True,
     }
     score = compute_usefulness(data)
-    assert score <= -1.0
+    assert score <= -0.5
+
+
+def test_compute_usefulness_no_extended():
+    data = {
+        "kd": 1.2,
+        "adr": 80.0,
+        "kpr": 0.75,
+        "hs_pct": 50.0,
+        "mvps": 2,
+        "triple_kills": 1,
+        "quadro_kills": 0,
+        "penta_kills": 0,
+    }
+    score = compute_usefulness(data)
+    assert score >= 0.0
 
 
 def test_describe_usefulness():

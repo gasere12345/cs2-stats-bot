@@ -25,6 +25,7 @@ def aggregate_player_data(
     extended: dict[str, Any] | None,
     lifetime: dict[str, Any] | None,
     player_info: dict[str, Any] | None = None,
+    leetify: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "nickname": target_nickname,
@@ -82,6 +83,8 @@ def aggregate_player_data(
         "flash_assists": 0,
         "smoke_kills": 0,
         "flash_kills": 0,
+        "has_extended_data": extended is not None,
+        "leetify_ratings": (leetify or {}).get("recentGameRatings"),
         "all_stats_raw": {},
         "teammates": [],
         "opponents": [],
@@ -113,6 +116,10 @@ def aggregate_player_data(
                 result["result"] = s.get("Result", "")
                 result["first_kills"] = _safe_int(s.get("First Kills"))
                 result["first_deaths"] = _safe_int(s.get("First Deaths"))
+                fk = result["first_kills"]
+                fd = result["first_deaths"]
+                if fk + fd > 0:
+                    result["entry_success_pct"] = round(fk / (fk + fd) * 100, 1)
                 result["kast"] = _safe_float(s.get("KAST"))
                 result["utility_kills"] = _safe_int(s.get("Utility Kills"))
                 result["flash_assists"] = _safe_int(s.get("Flash Assists"))
@@ -161,5 +168,15 @@ def aggregate_player_data(
     if result["trade_kills"] > 0 or result["trade_deaths"] > 0:
         td = result["trade_deaths"] if result["trade_deaths"] > 0 else 1
         result["trade_ratio"] = round(result["trade_kills"] / td, 2)
+
+    if result["has_extended_data"]:
+        has_real_data = any([
+            result.get("utility_damage", 0) > 0,
+            result.get("enemies_flashed", 0) > 0,
+            result.get("clutch_1v1_wins", 0) > 0,
+            result.get("hltv_rating", 0) > 0,
+        ])
+        if not has_real_data:
+            result["has_extended_data"] = False
 
     return result
