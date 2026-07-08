@@ -11,15 +11,6 @@ def test_compute_usefulness_carry():
         "triple_kills": 3,
         "quadro_kills": 1,
         "penta_kills": 0,
-        "entry_success_pct": 65.0,
-        "trade_kills": 5,
-        "trade_deaths": 1,
-        "utility_damage": 180.0,
-        "enemies_flashed": 12,
-        "clutch_1v1_wins": 2,
-        "clutch_1v2_wins": 1,
-        "hltv_rating": 1.5,
-        "has_extended_data": True,
     }
     score = compute_usefulness(data)
     assert score >= 1.5
@@ -35,15 +26,6 @@ def test_compute_usefulness_avg():
         "triple_kills": 0,
         "quadro_kills": 0,
         "penta_kills": 0,
-        "entry_success_pct": 45.0,
-        "trade_kills": 2,
-        "trade_deaths": 2,
-        "utility_damage": 80.0,
-        "enemies_flashed": 5,
-        "clutch_1v1_wins": 0,
-        "clutch_1v2_wins": 0,
-        "hltv_rating": 1.0,
-        "has_extended_data": True,
     }
     score = compute_usefulness(data)
     assert -0.5 <= score <= 0.5
@@ -59,15 +41,6 @@ def test_compute_usefulness_weak():
         "triple_kills": 0,
         "quadro_kills": 0,
         "penta_kills": 0,
-        "entry_success_pct": 20.0,
-        "trade_kills": 0,
-        "trade_deaths": 5,
-        "utility_damage": 10.0,
-        "enemies_flashed": 0,
-        "clutch_1v1_wins": 0,
-        "clutch_1v2_wins": 0,
-        "hltv_rating": 0.5,
-        "has_extended_data": True,
     }
     score = compute_usefulness(data)
     assert score <= -0.5

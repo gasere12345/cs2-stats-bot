@@ -49,30 +49,6 @@ def format_summary(agg: dict[str, Any], score: float) -> str:
     if extras:
         lines += ["", "<b>📊 Дополнительно</b>"] + extras
 
-    if agg.get("has_extended_data"):
-        extras2 = []
-        if agg.get("entry_success_pct"):
-            extras2.append(f"Entry  {_fmt_pct(agg['entry_success_pct'])}")
-        if agg.get("trade_ratio"):
-            extras2.append(f"Trade  {agg['trade_ratio']:.2f}")
-        if agg.get("utility_damage"):
-            extras2.append(f"Util dmg  {agg['utility_damage']}")
-        if agg.get("enemies_flashed"):
-            extras2.append(f"Flashed  {agg['enemies_flashed']}")
-        clutch_parts = []
-        if agg.get("clutch_1v1_wins"):
-            clutch_parts.append(f"1v1 {agg['clutch_1v1_wins']}")
-        if agg.get("clutch_1v2_wins"):
-            clutch_parts.append(f"1v2 {agg['clutch_1v2_wins']}")
-        if agg.get("clutch_1v3_wins"):
-            clutch_parts.append(f"1v3 {agg['clutch_1v3_wins']}")
-        if clutch_parts:
-            extras2.append("Clutch  " + " | ".join(clutch_parts))
-        if agg.get("hltv_rating"):
-            extras2.append(f"HLTV  {agg['hltv_rating']:.2f}")
-        if extras2:
-            lines += ["", "<b>🌐 Faceit Analyser</b>"] + extras2
-
     if agg.get("lifetime_matches"):
         lines += [
             "",
@@ -91,9 +67,6 @@ def format_summary(agg: dict[str, Any], score: float) -> str:
     ]
 
     return "\n".join(lines)
-
-
-format_stats = format_summary
 
 
 def format_career(agg: dict[str, Any]) -> str:
@@ -119,18 +92,6 @@ def format_career(agg: dict[str, Any]) -> str:
     ]
     if agg.get("lifetime_win_streak"):
         lines.append(f"Лучшая серия  {agg['lifetime_win_streak']} побед")
-    fa_career = agg.get("fa_career")
-    if fa_career and fa_career.get("m", 0) > 0:
-        fa_lines = [f"FA HLTV  {fa_career['avg_hltv']:.2f}" if fa_career.get('avg_hltv') else ""]
-        if fa_career.get("avg_k1") is not None:
-            fa_lines.append(f"Multi 1x{fa_career['avg_k1']:.1f} / 2x{fa_career['avg_k2']:.1f} / "
-                            f"3x{fa_career['avg_k3']:.1f} / 4x{fa_career['avg_k4']:.1f} / 5x{fa_career['avg_k5']:.1f}")
-        if fa_career.get("highest_elo"):
-            fa_lines.append(f"Peak ELO  {fa_career['highest_elo']}")
-        fa_lines = [l for l in fa_lines if l]
-        if fa_lines:
-            lines += ["", "<b>🌐 Faceit Analyser</b>"] + fa_lines
-
     leetify = agg.get("leetify_ratings")
     if leetify:
         parts = []

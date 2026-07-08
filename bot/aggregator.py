@@ -26,7 +26,6 @@ def aggregate_player_data(
     lifetime: dict[str, Any] | None,
     player_info: dict[str, Any] | None = None,
     leetify: dict[str, Any] | None = None,
-    fa_career: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "nickname": target_nickname,
@@ -48,26 +47,13 @@ def aggregate_player_data(
         "quadro_kills": 0,
         "penta_kills": 0,
         "result": "",
-        "entry_success_pct": 0.0,
-        "opening_kills": 0,
-        "opening_deaths": 0,
-        "trade_kills": 0,
-        "trade_deaths": 0,
-        "trade_ratio": 0.0,
-        "utility_damage": 0.0,
-        "enemies_flashed": 0,
+        "first_kills": 0,
+        "first_deaths": 0,
+        "kast": 0.0,
+        "utility_kills": 0,
         "flash_assists": 0,
-        "clutch_1v1_wins": 0,
-        "clutch_1v2_wins": 0,
-        "clutch_1v3_wins": 0,
-        "rws": 0.0,
-        "hltv_rating": 0.0,
-        "t_win_rate": 0.0,
-        "ct_win_rate": 0.0,
-        "ak47_kills": 0,
-        "m4_kills": 0,
-        "awp_kills": 0,
-        "pistol_kills": 0,
+        "smoke_kills": 0,
+        "flash_kills": 0,
         "lifetime_matches": 0,
         "lifetime_wins": 0,
         "lifetime_kd": 0.0,
@@ -77,14 +63,6 @@ def aggregate_player_data(
         "lifetime_mvps": 0,
         "lifetime_kr": 0.0,
         "lifetime_win_streak": 0,
-        "first_kills": 0,
-        "first_deaths": 0,
-        "kast": 0.0,
-        "utility_kills": 0,
-        "flash_assists": 0,
-        "smoke_kills": 0,
-        "flash_kills": 0,
-        "has_extended_data": extended is not None,
         "leetify_ratings": (leetify or {}).get("recentGameRatings"),
         "all_stats_raw": {},
         "teammates": [],
@@ -136,25 +114,6 @@ def aggregate_player_data(
             else:
                 result["opponents"].append(nick)
 
-    if extended:
-        for p in extended.get("players") or []:
-            if p.get("nickname", "").lower() == target_nickname.lower():
-                result["entry_success_pct"] = _safe_float(p.get("entry_success_pct"))
-                result["opening_kills"] = _safe_int(p.get("opening_kills"))
-                result["opening_deaths"] = _safe_int(p.get("opening_deaths"))
-                result["trade_kills"] = _safe_int(p.get("trade_kills"))
-                result["trade_deaths"] = _safe_int(p.get("trade_deaths"))
-                result["utility_damage"] = _safe_float(p.get("utility_damage"))
-                result["enemies_flashed"] = _safe_int(p.get("enemies_flashed"))
-                result["flash_assists"] = _safe_int(p.get("flash_assists"))
-                result["clutch_1v1_wins"] = _safe_int(p.get("1v1_wins"))
-                result["clutch_1v2_wins"] = _safe_int(p.get("1v2_wins"))
-                result["clutch_1v3_wins"] = _safe_int(p.get("1v3_wins"))
-                result["hltv_rating"] = _safe_float(p.get("hltv_rating"))
-        result["t_win_rate"] = _safe_float(extended.get("t_win_rate"))
-        result["ct_win_rate"] = _safe_float(extended.get("ct_win_rate"))
-        result["rws"] = _safe_float(extended.get("rws"))
-
     if lifetime:
         result["lifetime_matches"] = _safe_int(lifetime.get("matches"))
         result["lifetime_wins"] = _safe_int(lifetime.get("wins"))
@@ -165,27 +124,5 @@ def aggregate_player_data(
         result["lifetime_mvps"] = _safe_int(lifetime.get("mvps"))
         result["lifetime_kr"] = _safe_float(lifetime.get("kr"))
         result["lifetime_win_streak"] = _safe_int(lifetime.get("longest_win_streak"))
-
-    if result["trade_kills"] > 0 or result["trade_deaths"] > 0:
-        td = result["trade_deaths"] if result["trade_deaths"] > 0 else 1
-        result["trade_ratio"] = round(result["trade_kills"] / td, 2)
-
-    if fa_career:
-        result["fa_career"] = {
-            k: fa_career.get(k)
-            for k in ["m", "avg_hltv", "hltv", "avg_kdr", "avg_krr", "hsp",
-                       "avg_k", "avg_d", "wr", "avg_k1", "avg_k2", "avg_k3",
-                       "avg_k4", "avg_k5", "current_elo", "highest_elo"]
-        }
-
-    if result["has_extended_data"]:
-        has_real_data = any([
-            result.get("utility_damage", 0) > 0,
-            result.get("enemies_flashed", 0) > 0,
-            result.get("clutch_1v1_wins", 0) > 0,
-            result.get("hltv_rating", 0) > 0,
-        ])
-        if not has_real_data:
-            result["has_extended_data"] = False
 
     return result
