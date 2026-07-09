@@ -3,74 +3,62 @@ from bot.rating import (
     estimate_rating,
     win_probability,
     team_win_probability,
-    required_rating_to_win,
-    required_kd_to_win,
+    required_score_to_win,
 )
 
 
-def test_compute_rating_base():
-    agg = {"elo": 1500}
-    assert compute_rating(agg, 0.0) == 1500.0
+def test_compute_rating_negative():
+    assert compute_rating({}, -2.0) == 500.0
+
+
+def test_compute_rating_zero():
+    assert compute_rating({}, 0.0) == 1000.0
 
 
 def test_compute_rating_positive():
-    agg = {"elo": 1500}
-    assert compute_rating(agg, 1.5) == 1650.0
+    assert compute_rating({}, 1.0) == 1250.0
 
 
-def test_compute_rating_negative():
-    agg = {"elo": 1500}
-    assert compute_rating(agg, -1.0) == 1400.0
+def test_compute_rating_max():
+    assert compute_rating({}, 2.0) == 1500.0
 
 
-def test_compute_rating_no_elo():
-    agg = {"elo": 0}
-    r = compute_rating(agg, 0.5)
-    assert r == 1050.0
-
-
-def test_estimate_rating():
-    r = estimate_rating(0.0, 1.0, 70)
-    assert r == 1000.0
+def test_estimate_rating_equal():
+    assert estimate_rating(0.0, 1.0, 70) == 1000.0
 
 
 def test_estimate_rating_good():
-    r = estimate_rating(1.0, 1.2, 85)
-    assert r > 1000
+    assert estimate_rating(1.0, 1.2, 85) == 1250.0
 
 
 def test_win_probability_equal():
-    assert win_probability(1500, 1500) == 50.0
+    assert win_probability(1000, 1000) == 50.0
 
 
 def test_win_probability_higher():
-    wp = win_probability(1700, 1500)
+    wp = win_probability(1200, 1000)
     assert wp > 50.0
+    assert wp < 80.0
 
 
 def test_win_probability_lower():
-    wp = win_probability(1500, 1700)
+    wp = win_probability(1000, 1200)
     assert wp < 50.0
 
 
 def test_team_win_probability():
-    assert team_win_probability(1600, 1500) == 64.0
+    assert team_win_probability(1100, 1000) > 50.0
 
 
 def test_team_win_probability_equal():
-    assert team_win_probability(1500, 1500) == 50.0
+    assert team_win_probability(1000, 1000) == 50.0
 
 
-def test_required_rating_to_win():
-    assert required_rating_to_win(1500, 1550) == 1551.0
+def test_required_score_to_win_below():
+    need = required_score_to_win(0.0, 1200, 1000)
+    assert need > 0.0
 
 
-def test_required_kd_to_win():
-    kd = required_kd_to_win(1500, 1600, 80)
-    assert kd > 0
-
-
-def test_required_kd_below_target():
-    # If target <= base, return 0
-    kd = required_kd_to_win(1500, 1400, 80)
-    assert kd == 0.0
+def test_required_score_to_win_already_above():
+    need = required_score_to_win(1.0, 1000, 1250)
+    assert need >= 0.0

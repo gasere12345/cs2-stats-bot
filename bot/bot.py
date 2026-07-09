@@ -16,7 +16,7 @@ from bot.parser import parse_faceit_url
 from bot.aggregator import aggregate_player_data
 from bot.analyzer import compute_usefulness
 from bot.formatter import format_summary, format_career, format_match_detail, format_roster, format_rating_tab
-from bot.rating import compute_rating, estimate_rating, team_win_probability, win_probability
+from bot.rating import compute_rating, team_win_probability, win_probability
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -270,6 +270,7 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
                 "opp_avg_rating": opp_avg_rating,
                 "team_win_prob": twp,
                 "player_win_prob": pwp,
+                "usefulness": score,
             },
         }
 
