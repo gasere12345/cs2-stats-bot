@@ -117,13 +117,13 @@ class FaceitClient:
         if mvps is None:
             mvps = self._mvps_from_segments(data.get("segments") or [])
 
-        kr = self._pick_float(life, ["Average K/R Ratio", "K/R Ratio", "Average K/R", "K/R", "KPR", "kr"])
+        kr = self._pick_float(life, ["Average K/R Ratio", "K/R Ratio", "Average K/R", "K/R", "KPR", "kr"], max_val=3.0)
         if kr is None:
             kr = self._kr_from_segments(data.get("segments") or [])
 
-        kd = self._pick_float(life, ["Average K/D Ratio", "K/D Ratio"])
-        adr = self._pick_float(life, ["Average Damage per Round", "ADR"])
-        hs_pct = self._pick_float(life, ["Average Headshots %", "Headshots %"])
+        kd = self._pick_float(life, ["Average K/D Ratio", "K/D Ratio"], max_val=5.0)
+        adr = self._pick_float(life, ["Average Damage per Round", "ADR"], max_val=200.0)
+        hs_pct = self._pick_float(life, ["Average Headshots %", "Headshots %"], max_val=100.0)
 
         return LifetimeStats(
             matches=matches or 0,
@@ -169,7 +169,7 @@ class FaceitClient:
         weighted_sum = 0.0
         for seg in segments:
             s = seg.get("stats") or {}
-            kr_val = self._pick_float(s, ["Average K/R Ratio", "K/R Ratio", "Average K/R", "K/R"])
+            kr_val = self._pick_float(s, ["Average K/R Ratio", "K/R Ratio", "Average K/R", "K/R"], max_val=3.0)
             seg_matches = self._to_int(s.get("Matches"))
             if kr_val is not None and seg_matches and seg_matches > 0:
                 weighted_sum += kr_val * seg_matches
