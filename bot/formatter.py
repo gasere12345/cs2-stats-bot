@@ -1,5 +1,6 @@
 from typing import Any
 from bot.analyzer import compute_usefulness, describe_usefulness, describe_skill_level
+from bot.rating import compute_rating, win_probability, required_rating_to_win, required_kd_to_win
 
 
 def _fmt_pct(val: float) -> str:
@@ -68,6 +69,12 @@ def format_summary(agg: dict[str, Any], score: float) -> str:
             f"HS  {_fmt_pct(agg['lifetime_hs_pct'])}",
             describe_skill_level(agg['skill_level'], agg['elo'], agg['lifetime_win_rate']),
         ]
+
+    rating = compute_rating(agg, score)
+    lines += [
+        "",
+        f"📊 <b>Рейтинг:</b> {rating}  |  Usefulness: {score}",
+    ]
 
     lines += [
         "",
@@ -186,5 +193,67 @@ def format_roster(agg: dict[str, Any], team_scores: dict[str, Any] | None = None
             f"<b>📊 Средний Usefulness по командам</b>",
             f"Ваша  {team_avg:.2f}  |  Противники  {opp_avg:.2f}",
         ]
+
+    return "\n".join(lines)
+
+
+def format_rating_tab(agg: dict[str, Any], rating_data: dict[str, Any] | None, team_scores: dict[str, Any] | None) -> str:
+    if not rating_data:
+        return f"<b>📊 Рейтинг {agg['nickname']}</b>\n\nНет данных для расчёта рейтинга."
+
+    pr = rating_data["player_rating"]
+    elo = rating_data["player_elo"]
+    tar = rating_data["team_avg_rating"]
+    oar = rating_data["opp_avg_rating"]
+    twp = rating_data["team_win_prob"]
+    pwp = rating_data["player_win_prob"]
+
+    lines = [
+        f"<b>📊 Рейтинг {agg['nickname']}</b>",
+        "",
+        f"<b>🎯 Рейтинг игрока:</b> {pr}",
+        f"Faceit ELO: {elo}  |  Performance: {pr - elo:+.1f}",
+        "",
+        f"<b>👥 Средний рейтинг команды:</b> {tar}",
+        f"<b>👊 Средний рейтинг противников:</b> {oar}",
+        "",
+        f"<b>📈 Шанс победы</b>",
+        f"Команды: {twp}%",
+        f"Игрока: {pwp}%",
+    ]
+
+    if pwp < 50:
+        needed_rating = required_rating_to_win(pr, oar)
+        needed_kd = required_kd_to_win(agg.get("elo", 1000), needed_rating, agg.get("adr", 70))
+        lines += [
+            "",
+            f"<b>⚡ Что нужно для победы</b>",
+            f"Нужен рейтинг: {needed_rating} (сейчас {pr})",
+            f"Нужный K/D: {needed_kd} (сейчас {agg.get('kd', 0):.2f})",
+        ]
+    else:
+        lines += [
+            "",
+            f"<b>✅ Твой рейтинг выше среднего противника</b>",
+            f"При такой игре шанс победы — {pwp}%",
+        ]
+
+    if team_scores:
+        lines += ["", "<b>📊 Все игроки (рейтинг)</b>"]
+        nick = agg["nickname"]
+        mates = agg.get("teammates", [])
+        opps = agg.get("opponents", [])
+        lines.append("🤝 <b>Команда</b>")
+        for n in [nick] + mates:
+            if n in team_scores:
+                ts = team_scores[n]
+                marker = " ← Вы" if n == nick else ""
+                lines.append(f"  • {n}{marker} — {ts['rating']}  |  K/D {ts['kd']:.2f}")
+        lines.append("")
+        lines.append("👊 <b>Противники</b>")
+        for n in opps:
+            if n in team_scores:
+                ts = team_scores[n]
+                lines.append(f"  • {n} — {ts['rating']}  |  K/D {ts['kd']:.2f}")
 
     return "\n".join(lines)

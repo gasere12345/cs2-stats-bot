@@ -15,7 +15,8 @@ from bot.cs2space_client import Cs2SpaceClient
 from bot.parser import parse_faceit_url
 from bot.aggregator import aggregate_player_data
 from bot.analyzer import compute_usefulness
-from bot.formatter import format_summary, format_career, format_match_detail, format_roster
+from bot.formatter import format_summary, format_career, format_match_detail, format_roster, format_rating_tab
+from bot.rating import compute_rating, estimate_rating, team_win_probability, win_probability
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ TAB_SUMMARY = "tab_summary"
 TAB_CAREER = "tab_career"
 TAB_MATCH = "tab_match"
 TAB_ROSTER = "tab_roster"
+TAB_RATING = "tab_rating"
 
 EXAMPLE_MATCH_URL = "https://www.faceit.com/en/cs2/room/1-bef556dc-1883-4cad-b111-b3546972519c"
 EXAMPLE_NICKNAME = "f1lipmeister"
@@ -59,6 +61,7 @@ def match_buttons(match_url: str, player_url: str | None = None) -> InlineKeyboa
     builder.row(
         InlineKeyboardButton(text="🔫 Матч", callback_data=TAB_MATCH),
         InlineKeyboardButton(text="👥 Состав", callback_data=TAB_ROSTER),
+        InlineKeyboardButton(text="📊 Рейтинг", callback_data=TAB_RATING),
     )
     builder.row(InlineKeyboardButton(text="🔗 Открыть матч", url=match_url))
     if player_url:
@@ -233,21 +236,41 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
         team_scores = {}
         for p in (match_stats.get("players") or []):
             p_agg = aggregate_player_data(p["nickname"], match_stats, None, None, None, None)
+            p_score = compute_usefulness(p_agg)
             team_scores[p["nickname"]] = {
-                "score": compute_usefulness(p_agg),
+                "score": p_score,
                 "team_id": p.get("team_id", ""),
                 "kd": p_agg["kd"],
                 "kills": p_agg["kills"],
                 "deaths": p_agg["deaths"],
                 "adr": p_agg["adr"],
+                "rating": compute_rating(p_agg, p_score),
             }
 
         faceit_url = f"https://www.faceit.com/en/cs2/room/{match_id}"
         player_faceit_url = f"https://www.faceit.com/en/players/{nickname}" if player_faceit else None
+
+        player_team_id = team_scores.get(nickname, {}).get("team_id", "")
+        team_ratings = [ts["rating"] for ts in team_scores.values() if ts.get("team_id") == player_team_id]
+        opp_ratings = [ts["rating"] for ts in team_scores.values() if ts.get("team_id") != player_team_id]
+        team_avg_rating = round(sum(team_ratings) / len(team_ratings), 1) if team_ratings else 0
+        opp_avg_rating = round(sum(opp_ratings) / len(opp_ratings), 1) if opp_ratings else 0
+        player_rating = compute_rating(agg, score)
+        twp = team_win_probability(team_avg_rating, opp_avg_rating)
+        pwp = win_probability(player_rating, opp_avg_rating)
+
         _sessions[message.chat.id] = {
             "agg": agg, "score": score,
             "match_url": faceit_url, "player_url": player_faceit_url,
             "team_scores": team_scores,
+            "rating_data": {
+                "player_rating": player_rating,
+                "player_elo": agg.get("elo", 0),
+                "team_avg_rating": team_avg_rating,
+                "opp_avg_rating": opp_avg_rating,
+                "team_win_prob": twp,
+                "player_win_prob": pwp,
+            },
         }
 
         text = format_summary(agg, score)
@@ -298,6 +321,17 @@ async def cb_tab_roster(callback: types.CallbackQuery):
         session = _sessions.get(callback.message.chat.id)
         return format_roster(agg, (session or {}).get("team_scores"))
     await _show_tab(callback, TAB_ROSTER, formatter)
+
+
+@dp.callback_query(F.data == TAB_RATING)
+async def cb_tab_rating(callback: types.CallbackQuery):
+
+    def formatter(agg, _score):
+        session = _sessions.get(callback.message.chat.id)
+        if not session:
+            return "❌ Данные устарели, отправь /faceit заново"
+        return format_rating_tab(agg, (session or {}).get("rating_data"), (session or {}).get("team_scores"))
+    await _show_tab(callback, TAB_RATING, formatter)
 
 
 class _HealthHandler(BaseHTTPRequestHandler):
