@@ -124,5 +124,21 @@ def aggregate_player_data(
         result["lifetime_mvps"] = _safe_int(lifetime.get("mvps"))
         result["lifetime_kr"] = _safe_float(lifetime.get("kr"))
         result["lifetime_win_streak"] = _safe_int(lifetime.get("longest_win_streak"))
+        segments = lifetime.get("segments") or []
+        map_stats = []
+        for seg in segments:
+            if seg.get("type") == "Map":
+                stats = seg.get("stats") or {}
+                map_stats.append({
+                    "name": seg.get("label", ""),
+                    "matches": _safe_int(stats.get("Matches")),
+                    "wins": _safe_int(stats.get("Wins")),
+                    "kd": _safe_float(stats.get("K/D Ratio")),
+                    "adr": _safe_float(stats.get("Average Damage per Round") or stats.get("ADR")),
+                    "hs_pct": _safe_float(stats.get("Average Headshots %") or stats.get("Headshots %")),
+                    "kpr": _safe_float(stats.get("Average K/R Ratio") or stats.get("K/R Ratio")),
+                })
+        map_stats.sort(key=lambda x: x["matches"], reverse=True)
+        result["map_stats"] = map_stats
 
     return result

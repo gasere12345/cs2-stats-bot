@@ -86,6 +86,27 @@ def format_summary(agg: dict[str, Any], score: float) -> str:
     return "\n".join(lines)
 
 
+def _fmt_map_stats(agg: dict[str, Any]) -> str:
+    maps = agg.get("map_stats") or []
+    if not maps:
+        return ""
+    lines = ["", "<b>📊 По картам (топ-5):</b>"]
+    for m in maps[:5]:
+        name = m["name"]
+        if not name:
+            continue
+        matches = m["matches"]
+        kd = m["kd"]
+        adr = m["adr"]
+        wr = round(m["wins"] / matches * 100, 1) if matches and m["wins"] else 0
+        kd_str = f"{kd:.2f}" if kd else "—"
+        adr_str = f"{adr}" if adr else "—"
+        win_str = f"{wr}%" if wr else "—"
+        m_word = "матч" if matches == 1 else "матчей" if 2 <= matches <= 4 else "матчей"
+        lines.append(f"  {name:<12} — {matches} {m_word}, K/D {kd_str}, ADR {adr_str}, Win {win_str}")
+    return "\n".join(lines)
+
+
 def format_career(agg: dict[str, Any]) -> str:
     if not agg.get("lifetime_matches"):
         return f"<b>📈 Карьера {agg['nickname']}</b>\n\nНет данных о карьере."
@@ -120,6 +141,9 @@ def format_career(agg: dict[str, Any]) -> str:
             parts.append(f"Util  {leetify['utility']}")
         if parts:
             lines += ["", "<b>🤖 Leetify ratings</b>", "  |  ".join(parts)]
+    map_block = _fmt_map_stats(agg)
+    if map_block:
+        lines.append(map_block)
     lines.append(f"\n{describe_skill_level(agg['skill_level'], agg['elo'], agg['lifetime_win_rate'])}")
     return "\n".join(lines)
 
@@ -196,6 +220,100 @@ def format_roster(agg: dict[str, Any], team_scores: dict[str, Any] | None = None
             f"Ваша  {team_avg:.2f}  |  Противники  {opp_avg:.2f}",
         ]
 
+    return "\n".join(lines)
+
+
+def format_profile(agg: dict[str, Any]) -> str:
+    if not agg.get("lifetime_matches"):
+        return f"<b>👤 Профиль {agg['nickname']}</b>\n\nНет данных о карьере."
+
+    lines = [
+        f"<b>👤 Профиль {agg['nickname']}</b>",
+        f"Страна: {agg.get('country', '—').upper()}  |  "
+        f"Уровень: {agg['skill_level']}  |  "
+        f"ELO: {agg['elo']}",
+        f"🔗 <a href='https://www.faceit.com/en/players/{agg['nickname']}'>Faceit</a>",
+        "",
+        f"<b>📈 Карьера</b>",
+        f"Матчей  {agg['lifetime_matches']}  |  "
+        f"Побед  {agg['lifetime_wins']}  |  "
+        f"Поражений  {agg['lifetime_matches'] - agg['lifetime_wins']}",
+        f"Win Rate  {_fmt_pct(agg['lifetime_win_rate'])}",
+    ]
+    if agg.get("lifetime_win_streak"):
+        lines.append(f"Лучшая серия  {agg['lifetime_win_streak']} побед")
+    lines += [
+        "",
+        f"<b>Средние</b>",
+        f"K/D  {agg['lifetime_kd']:.2f}  |  "
+        f"ADR  {agg['lifetime_adr']}  |  "
+        f"HS  {_fmt_pct(agg['lifetime_hs_pct'])}",
+        f"MVPs  {agg['lifetime_mvps']}  |  "
+        f"K/R  {agg['lifetime_kr']:.2f}",
+    ]
+
+    leetify = agg.get("leetify_ratings")
+    if leetify:
+        parts = []
+        if leetify.get("aim") is not None:
+            parts.append(f"Aim  {leetify['aim']}")
+        if leetify.get("positioning") is not None:
+            parts.append(f"Pos  {leetify['positioning']}")
+        if leetify.get("utility") is not None:
+            parts.append(f"Util  {leetify['utility']}")
+        if parts:
+            lines += ["", "<b>🤖 Leetify ratings</b>", "  |  ".join(parts)]
+
+    map_block = _fmt_map_stats(agg)
+    if map_block:
+        lines.append(map_block)
+
+    lines.append(f"\n{describe_skill_level(agg['skill_level'], agg['elo'], agg['lifetime_win_rate'])}")
+    return "\n".join(lines)
+
+
+def format_compare(agg1: dict[str, Any], agg2: dict[str, Any]) -> str:
+    n1, n2 = agg1['nickname'], agg2['nickname']
+    lines = [
+        f"<b>⚔️ Сравнение: {n1} vs {n2}</b>",
+        "",
+        f"<code>{'':20}   {n1:<15}   {n2:<15}</code>",
+    ]
+
+    fields = [
+        ("Уровень", "skill_level", "{}", int),
+        ("ELO", "elo", "{}", int),
+        ("Матчи", "lifetime_matches", "{}", int),
+        ("Win Rate", "lifetime_win_rate", "{:.1f}%", float),
+        ("K/D", "lifetime_kd", "{:.2f}", float),
+        ("ADR", "lifetime_adr", "{:.1f}", float),
+        ("HS%", "lifetime_hs_pct", "{:.1f}%", float),
+        ("MVPs", "lifetime_mvps", "{}", int),
+        ("K/R", "lifetime_kr", "{:.2f}", float),
+    ]
+
+    better_n1 = 0
+    better_n2 = 0
+    for label, key, fmt, caster in fields:
+        v1 = caster(agg1.get(key, 0))
+        v2 = caster(agg2.get(key, 0))
+        s1 = fmt.format(v1)
+        s2 = fmt.format(v2)
+        if v1 > v2:
+            better_n1 += 1
+            s1 += " ←"
+        elif v2 > v1:
+            better_n2 += 1
+            s2 += " ←"
+        lines.append(f"<code>{label:<20}   {s1:<15}   {s2:<15}</code>")
+
+    total_fields = len(fields)
+    ties = total_fields - better_n1 - better_n2
+    parts = [f"{n1} лидирует в {better_n1}/{total_fields}" if better_n1 else ""]
+    parts.append(f"{n2} лидирует в {better_n2}/{total_fields}" if better_n2 else "")
+    parts.append(f"ничья в {ties}" if ties else "")
+    verdict = ", ".join(p for p in parts if p)
+    lines += ["", f"<b>Итог:</b> {verdict}"]
     return "\n".join(lines)
 
 

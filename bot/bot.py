@@ -15,7 +15,7 @@ from bot.cs2space_client import Cs2SpaceClient
 from bot.parser import parse_faceit_url
 from bot.aggregator import aggregate_player_data
 from bot.analyzer import compute_usefulness
-from bot.formatter import format_summary, format_career, format_match_detail, format_roster, format_rating_tab
+from bot.formatter import format_summary, format_career, format_match_detail, format_roster, format_rating_tab, format_profile, format_compare
 from bot.rating import compute_rating, team_win_probability, win_probability
 
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +32,7 @@ bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
 _sessions: dict[int, dict] = {}
+_waiting_for: dict[int, str] = {}
 
 TAB_SUMMARY = "tab_summary"
 TAB_CAREER = "tab_career"
@@ -45,6 +46,10 @@ EXAMPLE_NICKNAME = "f1lipmeister"
 
 def main_menu() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="👤 Профиль", callback_data="profile"),
+        InlineKeyboardButton(text="⚔️ Сравнить", callback_data="compare"),
+    )
     builder.row(
         InlineKeyboardButton(text="📋 Помощь", callback_data="help"),
         InlineKeyboardButton(text="📌 Пример", callback_data="example"),
@@ -72,11 +77,14 @@ def match_buttons(match_url: str, player_url: str | None = None) -> InlineKeyboa
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
+    _waiting_for.pop(message.chat.id, None)
     await message.reply(
         "🎮 <b>CS2 Faceit Stats Bot</b>\n\n"
         "Анализирую статистику игроков в матчах Faceit.\n\n"
-        "Просто отправь команду:\n"
-        "<code>/faceit &lt;ссылка_на_матч&gt; &lt;ник&gt;</code>",
+        "Используй кнопки ниже или команды:\n"
+        "• <code>/faceit &lt;url&gt; &lt;ник&gt;</code> — статистика матча\n"
+        "• <code>/profile &lt;ник&gt;</code> — профиль игрока\n"
+        "• <code>/compare &lt;ник1&gt; &lt;ник2&gt;</code> — сравнение",
         parse_mode="HTML",
         reply_markup=main_menu(),
     )
@@ -88,14 +96,17 @@ async def cmd_help(message: types.Message):
         "📋 <b>Все команды</b>\n\n"
         "<b>/start</b> — главное меню\n"
         "<b>/help</b> — эта справка\n"
-        "<b>/faceit</b> <i>&lt;url&gt; &lt;ник&gt;</i> — получить статистику\n\n"
+        "<b>/faceit</b> <i>&lt;url&gt; &lt;ник&gt;</i> — статистика матча\n"
+        "<b>/profile</b> <i>&lt;ник&gt;</i> — профиль игрока\n"
+        "<b>/compare</b> <i>&lt;ник1&gt; &lt;ник2&gt;</i> — сравнить игроков\n\n"
         "📌 <b>Пример:</b>\n"
         f"<code>/faceit {EXAMPLE_MATCH_URL} {EXAMPLE_NICKNAME}</code>\n\n"
-        "📊 <b>Что показывает:</b>\n"
-        "• K/D, ADR, KPR, HS%, MVPs\n"
-        "• Мультикиллы (триплы/квадры/пенты)\n"
-        "• Карьерная статистика (lifetime)\n"
-        "• Usefulness Score (−2..+2)\n",
+        "📊 <b>Что умеет бот:</b>\n"
+        "• Usefulness Score (−2..+2)\n"
+        "• Разбор по картам (топ-5)\n"
+        "• Elo-рейтинг и шанс победы\n"
+        "• Leetify рейтинги (aim/pos/util)\n"
+        "• Профиль и сравнение игроков\n",
         parse_mode="HTML",
         reply_markup=main_menu(),
     )
@@ -103,11 +114,14 @@ async def cmd_help(message: types.Message):
 
 @dp.callback_query(F.data == "start")
 async def cb_start(callback: types.CallbackQuery):
+    _waiting_for.pop(callback.message.chat.id, None)
     await callback.message.edit_text(
         "🎮 <b>CS2 Faceit Stats Bot</b>\n\n"
         "Анализирую статистику игроков в матчах Faceit.\n\n"
-        "Просто отправь команду:\n"
-        "<code>/faceit &lt;ссылка_на_матч&gt; &lt;ник&gt;</code>",
+        "Используй кнопки ниже или команды:\n"
+        "• <code>/faceit &lt;url&gt; &lt;ник&gt;</code> — статистика матча\n"
+        "• <code>/profile &lt;ник&gt;</code> — профиль игрока\n"
+        "• <code>/compare &lt;ник1&gt; &lt;ник2&gt;</code> — сравнение",
         parse_mode="HTML",
         reply_markup=main_menu(),
     )
@@ -120,14 +134,17 @@ async def cb_help(callback: types.CallbackQuery):
         "📋 <b>Все команды</b>\n\n"
         "<b>/start</b> — главное меню\n"
         "<b>/help</b> — эта справка\n"
-        "<b>/faceit</b> <i>&lt;url&gt; &lt;ник&gt;</i> — получить статистику\n\n"
+        "<b>/faceit</b> <i>&lt;url&gt; &lt;ник&gt;</i> — статистика матча\n"
+        "<b>/profile</b> <i>&lt;ник&gt;</i> — профиль игрока\n"
+        "<b>/compare</b> <i>&lt;ник1&gt; &lt;ник2&gt;</i> — сравнить игроков\n\n"
         "📌 <b>Пример:</b>\n"
         f"<code>/faceit {EXAMPLE_MATCH_URL} {EXAMPLE_NICKNAME}</code>\n\n"
-        "📊 <b>Что показывает:</b>\n"
-        "• K/D, ADR, KPR, HS%, MVPs\n"
-        "• Мультикиллы (триплы/квадры/пенты)\n"
-        "• Карьерная статистика (lifetime)\n"
-        "• Usefulness Score (−2..+2)\n",
+        "📊 <b>Что умеет бот:</b>\n"
+        "• Usefulness Score (−2..+2)\n"
+        "• Разбор по картам (топ-5)\n"
+        "• Elo-рейтинг и шанс победы\n"
+        "• Leetify рейтинги (aim/pos/util)\n"
+        "• Профиль и сравнение игроков\n",
         parse_mode="HTML",
         reply_markup=main_menu(),
     )
@@ -281,6 +298,166 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
     except Exception as e:
         logger.exception("Ошибка при обработке команды")
         await status_msg.edit_text(f"❌ Ошибка: {e}")
+
+
+async def _fetch_leetify(player_faceit):
+    leetify = None
+    if cs2space and player_faceit and player_faceit.steam_id:
+        try:
+            profile = await cs2space.get_profile(player_faceit.steam_id)
+            leetify = (profile or {}).get("leetify")
+        except Exception as e:
+            logger.warning("cs2.space API не отвечает: %s", e)
+    return leetify
+
+
+async def _fetch_profile(nickname: str):
+    player = await faceit.get_player_by_nickname(nickname)
+    if not player:
+        return None
+    lifetime = await faceit.get_lifetime_stats(player.player_id)
+    leetify = await _fetch_leetify(player)
+    from dataclasses import asdict
+    agg = aggregate_player_data(
+        nickname, None, None,
+        asdict(lifetime) if lifetime else None,
+        asdict(player) if player else None,
+        leetify,
+    )
+    return agg
+
+
+async def _do_profile(nickname: str, status_msg: types.Message):
+    agg = await _fetch_profile(nickname)
+    if not agg or not agg.get("lifetime_matches"):
+        await status_msg.edit_text(f"❌ Игрок {nickname} не найден.")
+        return
+    text = format_profile(agg)
+    await status_msg.edit_text(text, parse_mode="HTML", reply_markup=main_menu())
+
+
+async def _do_compare(names: str, status_msg: types.Message):
+    parts = names.split(None, 1)
+    if len(parts) < 2:
+        await status_msg.edit_text("❌ Введи два ника через пробел.")
+        return
+    n1, n2 = parts[0].strip(), parts[1].strip()
+    agg1 = await _fetch_profile(n1)
+    agg2 = await _fetch_profile(n2)
+    if not agg1 or not agg1.get("lifetime_matches"):
+        await status_msg.edit_text(f"❌ Игрок {n1} не найден.")
+        return
+    if not agg2 or not agg2.get("lifetime_matches"):
+        await status_msg.edit_text(f"❌ Игрок {n2} не найден.")
+        return
+    text = format_compare(agg1, agg2)
+    await status_msg.edit_text(text, parse_mode="HTML", reply_markup=main_menu())
+
+
+@dp.message(Command("profile"))
+async def cmd_profile(message: types.Message, command: CommandObject):
+    nickname = (command.args or "").strip()
+    if not nickname:
+        await message.reply(
+            "👤 Введи ник игрока.\n\n"
+            "Например: <code>/profile f1lipmeister</code>",
+            parse_mode="HTML",
+        )
+        return
+    status_msg = await message.reply("🔍 Ищу игрока...")
+    try:
+        await _do_profile(nickname, status_msg)
+    except Exception as e:
+        logger.exception("Ошибка /profile")
+        await status_msg.edit_text(f"❌ Ошибка: {e}")
+
+
+@dp.message(Command("compare"))
+async def cmd_compare(message: types.Message, command: CommandObject):
+    args = (command.args or "").strip()
+    if not args or " " not in args:
+        await message.reply(
+            "⚔️ Введи два ника через пробел.\n\n"
+            "Например: <code>/compare f1lipmeister donk</code>",
+            parse_mode="HTML",
+        )
+        return
+    status_msg = await message.reply("🔍 Ищу игроков...")
+    try:
+        await _do_compare(args, status_msg)
+    except Exception as e:
+        logger.exception("Ошибка /compare")
+        await status_msg.edit_text(f"❌ Ошибка: {e}")
+
+
+@dp.message(F.text, ~F.command())
+async def handle_input(message: types.Message):
+    state = _waiting_for.pop(message.chat.id, None)
+    if not state:
+        return
+    status_msg = await message.reply("🔍 Обрабатываю...")
+    try:
+        if state == "profile":
+            await _do_profile(message.text.strip(), status_msg)
+        elif state == "compare":
+            await _do_compare(message.text.strip(), status_msg)
+    except Exception as e:
+        logger.exception("Ошибка в handle_input")
+        await status_msg.edit_text(f"❌ Ошибка: {e}")
+
+
+@dp.callback_query(F.data == "profile")
+async def cb_profile(callback: types.CallbackQuery):
+    _waiting_for[callback.message.chat.id] = "profile"
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
+    await callback.message.edit_text(
+        "👤 <b>Профиль</b>\n\nВведи ник игрока:",
+        parse_mode="HTML",
+        reply_markup=kb.as_markup(),
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "compare")
+async def cb_compare(callback: types.CallbackQuery):
+    _waiting_for[callback.message.chat.id] = "compare"
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
+    await callback.message.edit_text(
+        "⚔️ <b>Сравнение</b>\n\nВведи два ника через пробел:\n\n"
+        f"Например: <code>f1lipmeister donk</code>",
+        parse_mode="HTML",
+        reply_markup=kb.as_markup(),
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "profile")
+async def cb_profile(callback: types.CallbackQuery):
+    _waiting_for[callback.message.chat.id] = "profile"
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
+    await callback.message.edit_text(
+        "👤 <b>Профиль</b>\n\nВведи ник игрока:",
+        parse_mode="HTML",
+        reply_markup=kb.as_markup(),
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "compare")
+async def cb_compare(callback: types.CallbackQuery):
+    _waiting_for[callback.message.chat.id] = "compare"
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
+    await callback.message.edit_text(
+        "⚔️ <b>Сравнение</b>\n\nВведи два ника через пробел:\n\n"
+        f"Например: <code>f1lipmeister donk</code>",
+        parse_mode="HTML",
+        reply_markup=kb.as_markup(),
+    )
+    await callback.answer()
 
 
 async def _show_tab(callback: types.CallbackQuery, tab: str, formatter):

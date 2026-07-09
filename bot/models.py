@@ -47,3 +47,4 @@ class LifetimeStats:
     kr: float = 0.0
     longest_win_streak: int = 0
     raw: dict[str, Any] = field(default_factory=dict)
+    segments: list[dict[str, Any]] = field(default_factory=list)

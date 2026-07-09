@@ -143,6 +143,7 @@ class FaceitClient:
             kr=kr or 0.0,
             longest_win_streak=self._to_int(life.get("Longest Win Streak")) or 0,
             raw=life,
+            segments=data.get("segments") or [],
         )
 
     async def get_match_history(self, player_id: str, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
