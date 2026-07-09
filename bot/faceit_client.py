@@ -117,25 +117,22 @@ class FaceitClient:
         if mvps is None:
             mvps = self._mvps_from_segments(data.get("segments") or [])
 
-        kr = self._to_float(
-            life.get("Average K/R Ratio")
-            or life.get("K/R Ratio")
-            or life.get("Average K/R")
-            or life.get("K/R")
-            or life.get("KPR")
-            or life.get("kr")
-        )
+        kr = self._pick_float(life, ["Average K/R Ratio", "K/R Ratio", "Average K/R", "K/R", "KPR", "kr"])
         if kr is None:
             kr = self._kr_from_segments(data.get("segments") or [])
+
+        kd = self._pick_float(life, ["Average K/D Ratio", "K/D Ratio"])
+        adr = self._pick_float(life, ["Average Damage per Round", "ADR"])
+        hs_pct = self._pick_float(life, ["Average Headshots %", "Headshots %"])
 
         return LifetimeStats(
             matches=matches or 0,
             wins=wins or 0,
             losses=losses,
             win_rate=self._to_float(life.get("Win Rate %")) or 0.0,
-            kd=self._to_float(life.get("Average K/D Ratio") or life.get("K/D Ratio")) or 0.0,
-            adr=self._to_float(life.get("Average Damage per Round") or life.get("ADR")) or 0.0,
-            hs_pct=self._to_float(life.get("Average Headshots %") or life.get("Headshots %")) or 0.0,
+            kd=kd or 0.0,
+            adr=adr or 0.0,
+            hs_pct=hs_pct or 0.0,
             kills=self._to_int(life.get("Total Kills")) or 0,
             deaths=self._to_int(life.get("Total Deaths")) or 0,
             assists=self._to_int(life.get("Total Assists")) or 0,
@@ -172,7 +169,7 @@ class FaceitClient:
         weighted_sum = 0.0
         for seg in segments:
             s = seg.get("stats") or {}
-            kr_val = self._to_float(s.get("Average K/R Ratio") or s.get("K/R Ratio") or s.get("Average K/R") or s.get("K/R"))
+            kr_val = self._pick_float(s, ["Average K/R Ratio", "K/R Ratio", "Average K/R", "K/R"])
             seg_matches = self._to_int(s.get("Matches"))
             if kr_val is not None and seg_matches and seg_matches > 0:
                 weighted_sum += kr_val * seg_matches
@@ -196,3 +193,10 @@ class FaceitClient:
             return float(str(val).replace("%", "").strip())
         except (TypeError, ValueError):
             return None
+
+    def _pick_float(self, obj: dict, keys: list[str], max_val: float = 1000.0) -> float | None:
+        for key in keys:
+            val = self._to_float(obj.get(key))
+            if val is not None and -max_val <= val <= max_val:
+                return val
+        return None
