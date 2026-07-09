@@ -19,6 +19,19 @@ def _safe_float(val: Any) -> float:
         return 0.0
 
 
+def _pick_float(stats: dict, keys: list[str], max_val: float = 1000.0) -> float:
+    for key in keys:
+        val = stats.get(key)
+        if val is not None:
+            try:
+                f = float(str(val).replace("%", "").strip())
+                if -max_val <= f <= max_val:
+                    return f
+            except (TypeError, ValueError):
+                pass
+    return 0.0
+
+
 def aggregate_player_data(
     target_nickname: str,
     match_stats: dict[str, Any] | None,
@@ -133,10 +146,10 @@ def aggregate_player_data(
                     "name": seg.get("label", ""),
                     "matches": _safe_int(stats.get("Matches")),
                     "wins": _safe_int(stats.get("Wins")),
-                    "kd": _safe_float(stats.get("K/D Ratio")),
-                    "adr": _safe_float(stats.get("Average Damage per Round") or stats.get("ADR")),
-                    "hs_pct": _safe_float(stats.get("Average Headshots %") or stats.get("Headshots %")),
-                    "kpr": _safe_float(stats.get("Average K/R Ratio") or stats.get("K/R Ratio")),
+                    "kd": _pick_float(stats, ["Average K/D Ratio", "K/D Ratio"], 5.0),
+                    "adr": _pick_float(stats, ["Average Damage per Round", "ADR"], 200.0),
+                    "hs_pct": _pick_float(stats, ["Average Headshots %", "Headshots %"], 100.0),
+                    "kpr": _pick_float(stats, ["Average K/R Ratio", "K/R Ratio", "Average K/R", "K/R"], 3.0),
                 })
         map_stats.sort(key=lambda x: x["matches"], reverse=True)
         result["map_stats"] = map_stats
