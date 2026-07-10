@@ -62,6 +62,7 @@ def aggregate_player_data(
         "result": "",
         "first_kills": 0,
         "first_deaths": 0,
+        "entry_success_pct": 0.0,
         "kast": 0.0,
         "utility_kills": 0,
         "flash_assists": 0,

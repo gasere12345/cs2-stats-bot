@@ -13,18 +13,21 @@ class FaceitClient:
             "Authorization": f"Bearer {api_key}",
             "Accept": "application/json",
         }
+        self._client = httpx.AsyncClient(timeout=FACEIT_TIMEOUT_SEC)
+
+    async def close(self):
+        await self._client.aclose()
 
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
-        async with httpx.AsyncClient(timeout=FACEIT_TIMEOUT_SEC) as c:
-            resp = await c.get(
-                f"{self._base_url}{path}",
-                params=params,
-                headers=self._headers,
-            )
-            if resp.status_code == 404:
-                return None
-            resp.raise_for_status()
-            return resp.json()
+        resp = await self._client.get(
+            f"{self._base_url}{path}",
+            params=params,
+            headers=self._headers,
+        )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp.json()
 
     def _parse_player(self, data: dict, fallback_nickname: str = "") -> FaceitPlayer | None:
         if data is None:

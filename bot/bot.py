@@ -10,6 +10,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.config import FACEIT_API_KEY, CS2_SPACE_KEY, BOT_TOKEN
 from bot.faceit_client import FaceitClient
 from bot.cs2space_client import Cs2SpaceClient
 from bot.parser import parse_faceit_url
@@ -21,9 +22,13 @@ from bot.rating import compute_rating, team_win_probability, win_probability
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-FACEIT_TOKEN = os.environ.get("FACEIT_TOKEN", "")
-CS2_SPACE_KEY = os.environ.get("CS2_SPACE_KEY", "")
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+FACEIT_TOKEN = FACEIT_API_KEY
+TELEGRAM_TOKEN = BOT_TOKEN
+
+if not TELEGRAM_TOKEN:
+    raise ValueError("TELEGRAM_TOKEN is not set")
+if not FACEIT_TOKEN:
+    raise ValueError("FACEIT_TOKEN is not set")
 
 faceit = FaceitClient(api_key=FACEIT_TOKEN)
 cs2space = Cs2SpaceClient(api_key=CS2_SPACE_KEY) if CS2_SPACE_KEY else None
@@ -232,14 +237,7 @@ async def cmd_faceit(message: types.Message, command: CommandObject):
         if player_id:
             lifetime = await faceit.get_lifetime_stats(player_id)
 
-        leetify = None
-        if cs2space and player_faceit and player_faceit.steam_id:
-            try:
-                profile = await cs2space.get_profile(player_faceit.steam_id)
-                leetify = (profile or {}).get("leetify")
-            except Exception as e:
-                logger.warning("cs2.space API не отвечает: %s", e)
-
+        leetify = await _fetch_leetify(player_faceit)
         await status_msg.edit_text("📊 Анализирую...")
 
         player_info = asdict(player_faceit) if player_faceit else None
@@ -317,7 +315,6 @@ async def _fetch_profile(nickname: str):
         return None
     lifetime = await faceit.get_lifetime_stats(player.player_id)
     leetify = await _fetch_leetify(player)
-    from dataclasses import asdict
     agg = aggregate_player_data(
         nickname, None, None,
         asdict(lifetime) if lifetime else None,
@@ -404,60 +401,6 @@ async def handle_input(message: types.Message):
     except Exception as e:
         logger.exception("Ошибка в handle_input")
         await status_msg.edit_text(f"❌ Ошибка: {e}")
-
-
-@dp.callback_query(F.data == "profile")
-async def cb_profile(callback: types.CallbackQuery):
-    _waiting_for[callback.message.chat.id] = "profile"
-    kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
-    await callback.message.edit_text(
-        "👤 <b>Профиль</b>\n\nВведи ник игрока:",
-        parse_mode="HTML",
-        reply_markup=kb.as_markup(),
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "compare")
-async def cb_compare(callback: types.CallbackQuery):
-    _waiting_for[callback.message.chat.id] = "compare"
-    kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
-    await callback.message.edit_text(
-        "⚔️ <b>Сравнение</b>\n\nВведи два ника через пробел:\n\n"
-        f"Например: <code>f1lipmeister donk</code>",
-        parse_mode="HTML",
-        reply_markup=kb.as_markup(),
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "profile")
-async def cb_profile(callback: types.CallbackQuery):
-    _waiting_for[callback.message.chat.id] = "profile"
-    kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
-    await callback.message.edit_text(
-        "👤 <b>Профиль</b>\n\nВведи ник игрока:",
-        parse_mode="HTML",
-        reply_markup=kb.as_markup(),
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "compare")
-async def cb_compare(callback: types.CallbackQuery):
-    _waiting_for[callback.message.chat.id] = "compare"
-    kb = InlineKeyboardBuilder()
-    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
-    await callback.message.edit_text(
-        "⚔️ <b>Сравнение</b>\n\nВведи два ника через пробел:\n\n"
-        f"Например: <code>f1lipmeister donk</code>",
-        parse_mode="HTML",
-        reply_markup=kb.as_markup(),
-    )
-    await callback.answer()
 
 
 async def _show_tab(callback: types.CallbackQuery, tab: str, formatter):

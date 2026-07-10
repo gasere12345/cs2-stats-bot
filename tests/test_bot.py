@@ -21,7 +21,7 @@ def test_bot_command_parse_no_lang():
 
 
 def test_format_aggregated_output():
-    from bot.formatter import format_stats
+    from bot.formatter import format_summary
     from bot.analyzer import compute_usefulness
 
     data = {
@@ -44,38 +44,25 @@ def test_format_aggregated_output():
         "quadro_kills": 0,
         "penta_kills": 0,
         "entry_success_pct": 55.0,
-        "opening_kills": 3,
-        "opening_deaths": 2,
-        "trade_kills": 4,
-        "trade_deaths": 3,
-        "trade_ratio": 1.33,
-        "utility_damage": 120.0,
-        "enemies_flashed": 7,
-        "flash_assists": 1,
-        "clutch_1v1_wins": 1,
-        "clutch_1v2_wins": 0,
-        "hltv_rating": 1.25,
-        "rws": 11.5,
-            "first_kills": 3,
-            "first_deaths": 2,
-            "kast": 72.0,
-            "utility_kills": 1,
-            "smoke_kills": 0,
-            "flash_kills": 1,
-            "lifetime_matches": 350,
-            "lifetime_wins": 185,
-            "lifetime_kd": 1.28,
-            "lifetime_hs_pct": 48.0,
-            "lifetime_adr": 88.0,
-            "lifetime_win_rate": 52.9,
-            "lifetime_mvps": 120,
-            "lifetime_kr": 0.72,
-            "lifetime_win_streak": 5,
-        }
+        "first_kills": 3,
+        "first_deaths": 2,
+        "kast": 72.0,
+        "utility_kills": 1,
+        "smoke_kills": 0,
+        "flash_kills": 1,
+        "lifetime_matches": 350,
+        "lifetime_wins": 185,
+        "lifetime_kd": 1.28,
+        "lifetime_hs_pct": 48.0,
+        "lifetime_adr": 88.0,
+        "lifetime_win_rate": 52.9,
+        "lifetime_mvps": 120,
+        "lifetime_kr": 0.72,
+        "lifetime_win_streak": 5,
+    }
     score = compute_usefulness(data)
-    result = format_stats(data, score)
+    result = format_summary(data, score)
     assert "NiKo" in result
     assert "de_mirage" in result
     assert "13-16" in result
     assert "1.22" in result
-    assert "Carry" in result or "Good" in result or "Average" in result

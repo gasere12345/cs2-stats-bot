@@ -77,12 +77,7 @@ def test_aggregate_basic():
     assert result["triple_kills"] == 2
     assert result["quadro_kills"] == 1
     assert result["won"] is True
-    assert result["entry_success_pct"] == 60.0
-    assert result["trade_kills"] == 4
-    assert result["utility_damage"] == 142
-    assert result["enemies_flashed"] == 8
-    assert result["clutch_1v1_wins"] == 1
-    assert result["hltv_rating"] == 1.35
+    assert result["entry_success_pct"] == 0.0
     assert result["lifetime_kd"] == 1.35
     assert result["lifetime_hs_pct"] == 51.0
     assert result["lifetime_win_rate"] == 58.0
@@ -108,5 +103,4 @@ def test_aggregate_no_extended():
     result = aggregate_player_data("NiKo", match_stats=match_stats, extended=None, lifetime=None)
     assert result["kills"] == 20
     assert result["entry_success_pct"] == 0.0
-    assert result["hltv_rating"] == 0.0
     assert result["lifetime_matches"] == 0

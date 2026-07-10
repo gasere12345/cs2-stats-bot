@@ -12,19 +12,22 @@ class Cs2SpaceClient:
             "x-api-key": api_key,
             "Accept": "application/json",
         }
+        self._client = httpx.AsyncClient(timeout=FACEIT_TIMEOUT_SEC)
+
+    async def close(self):
+        await self._client.aclose()
 
     async def _get(self, path: str) -> dict[str, Any] | None:
         if not self._api_key:
             return None
-        async with httpx.AsyncClient(timeout=FACEIT_TIMEOUT_SEC) as c:
-            resp = await c.get(
-                f"{self._base_url}{path}",
-                headers=self._headers,
-            )
-            if resp.status_code in (401, 403, 404):
-                return None
-            resp.raise_for_status()
-            return resp.json()
+        resp = await self._client.get(
+            f"{self._base_url}{path}",
+            headers=self._headers,
+        )
+        if resp.status_code in (401, 403, 404):
+            return None
+        resp.raise_for_status()
+        return resp.json()
 
     async def get_profile(self, steam_id: str) -> dict[str, Any] | None:
         return await self._get(f"/profile/{steam_id}")
