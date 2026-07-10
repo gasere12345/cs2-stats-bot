@@ -403,6 +403,33 @@ async def handle_input(message: types.Message):
         await status_msg.edit_text(f"❌ Ошибка: {e}")
 
 
+@dp.callback_query(F.data == "profile")
+async def cb_profile(callback: types.CallbackQuery):
+    _waiting_for[callback.message.chat.id] = "profile"
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
+    await callback.message.edit_text(
+        "👤 <b>Профиль</b>\n\nВведи ник игрока:",
+        parse_mode="HTML",
+        reply_markup=kb.as_markup(),
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "compare")
+async def cb_compare(callback: types.CallbackQuery):
+    _waiting_for[callback.message.chat.id] = "compare"
+    kb = InlineKeyboardBuilder()
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data="start"))
+    await callback.message.edit_text(
+        "⚔️ <b>Сравнение</b>\n\nВведи два ника через пробел:\n\n"
+        f"Например: <code>f1lipmeister donk</code>",
+        parse_mode="HTML",
+        reply_markup=kb.as_markup(),
+    )
+    await callback.answer()
+
+
 async def _show_tab(callback: types.CallbackQuery, tab: str, formatter):
     session = _sessions.get(callback.message.chat.id)
     if not session:
