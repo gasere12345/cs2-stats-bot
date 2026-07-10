@@ -1,30 +1,44 @@
-# CS2 Stats Telegram Bot
+# CS2 Faceit Stats Telegram Bot
 
 ## Stack
-- Python 3.11+, aiogram 3, Tesseract OCR, OpenCV, Pillow
+- Python 3.11+, aiogram 3, httpx
 
 ## Structure
-- `bot.py` — entry point, Telegram handlers
-- `config.py` — BOT_TOKEN, weights, thresholds
-- `ocr.py` — image preprocessing + Tesseract OCR
-- `parser.py` — parse OCR text → PlayerStats / MatchData
-- `analyzer.py` — weighted rating (−2..+2) + verdict text
-- `requirements.txt` — pip dependencies
+- `bot/bot.py` — entry point, Telegram handlers
+- `bot/config.py` — токены, URL, таймауты
+- `bot/faceit_client.py` — Faceit API
+- `bot/cs2space_client.py` — cs2.space API (Leetify)
+- `bot/aggregator.py` — склейка данных из источников
+- `bot/analyzer.py` — Usefulness Score
+- `bot/formatter.py` — форматирование сообщений
+- `bot/parser.py` — парсинг ссылок на матчи
+- `bot/rating.py` — Elo-рейтинг
+- `bot/models.py` — датаклассы
+- `tests/` — pytest тесты
 
 ## How to run
 ```bash
 cd cs2-stats-bot
-pip install -r requirements.txt
-sudo apt install tesseract-ocr
-# set BOT_TOKEN in config.py
-python bot.py
+.venv/bin/python -m bot.bot
 ```
 
-## Commands
-- `/start` — welcome
-- `/help` — usage
-- `/me Nickname` reply to photo — analyze specific player
-- Just send a screenshot — analyze all found players
+## How to test
+```bash
+.venv/bin/python -m pytest tests/ -v
+```
 
-## Data flow
-User screenshot → download → OCR preprocessing (gray+otsu+scale2x) → Tesseract → raw text → regex parse → PlayerStats → weighted score → verdict → reply
+## Workflow
+После каждого изменения кода ОБЯЗАТЕЛЬНО:
+1. Запустить тесты: `.venv/bin/python -m pytest tests/ -v`
+2. Запустить субагента-ревьюера (subagent_type=general) с задачей проверить весь проект на баги, безопасность, качество кода
+3. Если тесты не зеленые или ревьюер нашёл critical/high — исправить перед коммитом
+4. Залить на GitHub: `git add -A && git commit -m "msg" && git push`
+
+## Environment
+- `.env`: FACEIT_TOKEN, TELEGRAM_TOKEN, CS2_SPACE_KEY, FA_TOKEN
+- Render авто-деплой при пуше в master
+
+## Commands
+- `/faceit <url> <ник>` — статистика матча
+- `/profile <ник>` — профиль игрока
+- `/compare <ник1> <ник2>` — сравнение игроков
