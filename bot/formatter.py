@@ -274,10 +274,13 @@ def format_profile(agg: dict[str, Any]) -> str:
 
 def format_compare(agg1: dict[str, Any], agg2: dict[str, Any]) -> str:
     n1, n2 = agg1['nickname'], agg2['nickname']
+    col_w = max(len(n1), len(n2), 8) + 2
+    label_w = max(len("Win Rate"), len("Уровень"), 10) + 2
+
     lines = [
         f"<b>⚔️ Сравнение: {n1} vs {n2}</b>",
         "",
-        f"<code>{'':20}   {n1:<15}   {n2:<15}</code>",
+        f"<code>{'':{label_w}}   {n1:<{col_w}}   {n2:<{col_w}}</code>",
     ]
 
     fields = [
@@ -305,7 +308,7 @@ def format_compare(agg1: dict[str, Any], agg2: dict[str, Any]) -> str:
         elif v2 > v1:
             better_n2 += 1
             s2 += " ←"
-        lines.append(f"<code>{label:<20}   {s1:<15}   {s2:<15}</code>")
+        lines.append(f"<code>{label:<{label_w}}   {s1:<{col_w}}   {s2:<{col_w}}</code>")
 
     total_fields = len(fields)
     ties = total_fields - better_n1 - better_n2
